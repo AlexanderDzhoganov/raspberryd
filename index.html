@@ -1,0 +1,39 @@
+<html>
+    <head>
+        <title>Raspberry</title>
+        
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" />
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+    </head>
+    <body>
+        <div style="width: 100%; padding: 48px;">
+            <div style="width: 50%; margin: 0 auto;">
+                <div>
+                    <h2>Currently playing: <a href="{{lastUrl}}">{{lastUrl}}</a></h2>
+                </div>
+
+                <form action="play_url" method="post">
+                    <input type="text" class="form-control" name="url" placeholder="Insert magic here.."/>
+                    <br/>
+                    <button type="submit" class="btn btn-primary">Magic me, Santa!</button>
+                </form>
+
+                <hr>
+
+                <h3>Favorites</h3>
+
+                <form action="save_favorites" method="post">
+                    {{#each favorites}}
+                        <label for="fav_{{inc @index}}">
+                            #{{inc @index}}
+                        </label>
+                        <input type="text" class="form-control" name="fav_{{inc @index}}" id="fav_{{inc @index}}" value="{{this}}"/>
+                    {{/each}}
+
+                    <br/>
+                    <button type="submit" class="btn btn-success">Save</button>
+                </form>
+            </div>
+        </div>
+    </body>
+</html>

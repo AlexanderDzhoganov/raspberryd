@@ -9,6 +9,7 @@ var app = express();
 var static = require('./static');
 var brain = require('./brain');
 //var remote = require('./remote');
+var gui = require('./gui');
 
 var urlHandler = require('./url-handler');
 var twitchHandler = require('./twitch-handler');
@@ -24,6 +25,7 @@ brain.recall('favorites').then(function(favorites) {
 
 brain.recall('lastUrl').then(function(lastUrl) {
     if(lastUrl) {
+        gui.setText(lastUrl);
         urlHandler.callHandler(lastUrl);
     }
 }).catch(function(err) {
@@ -85,6 +87,7 @@ function handlePostRequest(req, res) {
 app.post('/play_url', function(req, res) {
     handlePostRequest(req, res).then(function(body) {
         if(body.url) {
+            gui.setText(body.url);
             urlHandler.callHandler(body.url);
             brain.remember('lastUrl', body.url);
         }

@@ -8,12 +8,9 @@
 
 #include "bcm_host.h"
 #include "vgfont.h"
-#include "window.h"
 
-void setText(const char*);
-void initOpenVG();
-void renderNextFrame();
-void disposeResources();
+#include "vector2.h"
+#include "window.h"
 
 namespace OpenVG
 {
@@ -27,35 +24,9 @@ using v8::Value;
 using v8::Exception;
 using v8::Number;
 
-void RenderNextFrame(const FunctionCallbackInfo<Value>& args)
-{
-    renderNextFrame();
-}
-
-void SetText(const FunctionCallbackInfo<Value>& args)
-{
-    Isolate* isolate = args.GetIsolate();
-
-    if (args.Length() == 0)
-    {
-        isolate->ThrowException(Exception::TypeError(String::NewFromUtf8(isolate, "Wrong number of arguments")));
-        return;
-    }
-
-    if (!args[0]->IsString())
-    {
-        isolate->ThrowException(Exception::TypeError(String::NewFromUtf8(isolate, "Wrong arguments")));
-        return;
-    }
-    v8::String::Utf8Value str(args[0]->ToString());
-    setText(*str);
-}
-
 void init(Local<Object> exports)
 {
-    NODE_SET_METHOD(exports, "renderNextFrame", RenderNextFrame);
-    NODE_SET_METHOD(exports, "setText", SetText);
-    initOpenVG();
+    Window::Init(exports);
 }
 
 NODE_MODULE(openvg, init)

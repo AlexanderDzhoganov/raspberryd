@@ -1,10 +1,9 @@
 var openvg = require('rpi-openvg')();
 
-setInterval(function() {
-    openvg.renderNextFrame();
-}, 100);
+var wnd = new openvg.Window(128, 128, 600, 200, 10.0);
+wnd.fill(0, 0, 600, 200, { r: 1.0, g: 1.0, b: 1.0, a: 1.0 });
+wnd.drawText(0, 0, 'Hello World!');
 
-exports.setText = function(text) {
-    console.log('Setting text to : ' + text);
-    openvg.setText(text);
-}
+setInterval(function() {
+    wnd.update();
+}, 100);

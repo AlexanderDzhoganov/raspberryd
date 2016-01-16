@@ -1,26 +1,41 @@
 #pragma once
 
+#include <node.h>
+#include <node_object_wrap.h>
+
 namespace OpenVG
 {
 
-    class Window
+    class Window : public node::ObjectWrap
     {
         public:
-        Window(const Vector2ui& pos, const Vector2ui& size, unsigned int layer);
+        static void Init(v8::Local<v8::Object> exports);
+
+        private:
+        explicit Window(const Vector2ui& pos, const Vector2ui& size, unsigned int layer);
         ~Window();
 
-        void SetPosition(const Vector2ui& pos);
-        void SetSize(const Vector2ui& size);
-        const Vector2ui& GetPosition() const;
-        const Vector2ui& GetSize() const;
+        static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-        void Show();
-        void Hide();
-        bool IsHidden() const;
+        static void SetPosition(const v8::FunctionCallbackInfo<v8::Value>& args);
+        static void GetPosition(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-        void Update();
+        static void SetSize(const v8::FunctionCallbackInfo<v8::Value>& args);
+        static void GetSize(const v8::FunctionCallbackInfo<v8::Value>& args);
+        static void GetDisplaySize(const v8::FunctionCallbackInfo<v8::Value>& args);
+  
+        static void Show(const v8::FunctionCallbackInfo<v8::Value>& args);
+        static void Hide(const v8::FunctionCallbackInfo<v8::Value>& args);
+        static void IsVisible(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-        void Fill(const Vector2ui& pos, const Vector2ui& size, uint32_t color);
+        static void Update(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+        static void Fill(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+        static void DrawText(const v8::FunctionCallbackInfo<v8::Value>& args);
+        static void MeasureText(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+        static v8::Persistent<v8::Function> constructor;
 
         private:
         static void InitializeGx();

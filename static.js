@@ -8,26 +8,39 @@ handlebars.registerHelper("inc", function(value, options)
 
 var templateCache = {};
 
-function addTemplate(path) {
-    fs.watchFile(path, function() {
+function cacheTemplate(path) {
+    return new Promise(function(resolve, reject) {
         fs.readFile(path, function(err, data) {
             if(err) {
-                console.error('Error reading "' + path + '" template, reason: ' + JSON.stringify(err, null, 4));
+                reject(err);
                 return;
             }
 
-            console.log('Reloading ' + path);
-            templateCache[path] = handlebars.compile(data.toString('utf-8'));
-        })
+            resolve(data.toString('utf-8'));
+        });
+    }).then(function(data) {
+        templateCache[path] = handlebars.compile(data);
+        return templateCache[path];
+    }).catch(function(err) {
+        console.error('Error reading "' + path + '" template, reason: ' + JSON.stringify(err, null, 4));
+        return Promise.reject(err);
     });
-
-    templateCache[path] = handlebars.compile(fs.readFileSync(path).toString('utf-8'));
 }
 
-exports.compileTemplate = function(path, data) {
+function addTemplate(path) {
+    fs.watchFile(path, function() {
+        cacheTemplate(path);
+    });
+
+    return cacheTemplate(path);
+}
+
+exports.fromTemplate = function(path, data) {
     if(!templateCache[path]) {
-        addTemplate(path);
+        return addTemplate(path).then(function(template) {
+            return Promise.resolve(template(data));
+        });
     }
 
-    return templateCache[path](data);
+    return Promise.resolve(templateCache[path](data));
 }

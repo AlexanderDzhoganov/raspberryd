@@ -21,7 +21,9 @@
     "handlebars": "^4.0.5",
     "lirc_node": "0.0.4",
     "lodash": "^4.0.0",
+    "omxdirector": "^0.1.2",
     "redis": "^2.4.2",
-    "request": "^2.67.0"
+    "request": "^2.67.0",
+    "tmp": "0.0.28"
   }
 }

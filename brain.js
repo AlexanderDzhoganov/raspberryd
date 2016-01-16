@@ -6,13 +6,40 @@ client.on('error', function(err) {
 });
 
 exports.remember = function(key, value) {
-    client.set(key, value);
+    return new Promise(function(resolve, reject) {
+        client.set(key, value, function(err) {
+            if(err) {
+                reject(err);
+                return;
+            }
+
+            resolve();
+        });
+    });
 }
 
-exports.recall = function(key, cb) {
-    client.get(key, cb);
+exports.recall = function(key) {
+    return new Promise(function(resolve, reject) {
+        client.get(key, function(err, value) {
+            if(err) {
+                reject(err);
+                return;
+            }
+
+            resolve(value);
+        });
+    });
 }
 
 exports.forget = function(key) {
-    client.del(key);
+    return new Promise(function(resolve, reject) {
+        client.del(key, function(err) {
+            if(err) {
+                reject(err);
+                return;
+            }
+
+            resolve();
+        });
+    });
 }

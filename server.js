@@ -7,100 +7,107 @@ var handlebars = require('handlebars');
 var app = express();
 
 var static = require('./static');
-var player = require('./player');
 var brain = require('./brain');
 //var remote = require('./remote');
 
-brain.recall('favorites', function(err, favorites) {
-    if(err || !favorites || favorites.length === 0) {
+var urlHandler = require('./url-handler');
+var twitchHandler = require('./twitch-handler');
+var youtubeHandler = require('./youtube-handler');
+
+brain.recall('favorites').then(function(favorites) {
+    if(!favorites) {
         brain.remember('favorites', JSON.stringify(['', '', '', '', '', '', '', '', '']));
     }
+}).catch(function(err) {
+    console.error('Error loading favorites: ' + JSON.stringify(err, null, 4));
 });
 
-player.getLastUrl(function(err, lastUrl) {
-    if(err) {
-        console.error(err);
-        return;
-    }
-
+brain.recall('lastUrl').then(function(lastUrl) {
     if(lastUrl) {
-        player.playUrl(lastUrl);
+        urlHandler.callHandler(lastUrl);
     }
+}).catch(function(err) {
+    console.error(err);
 });
 
-app.get('/', function (req, res) {
+app.get('*', function (req, res) {
+    var path = req.path;
+
+    if(path === '/') {
+        path = 'index.html';
+    } else {
+        path = path.slice(1);
+    }
+
     res.set('Content-Type', 'text/html');
 
-    player.getLastUrl(function(err, lastUrl) {
-        if(err) {
-            console.error(err);
-            res.end(new Buffer(err));
-            return;
-        }
-
-        brain.recall('favorites', function(err, favorites) {
-            if(err) {
-                console.error(err);
-                res.end(new Buffer(err));
-                return;
-            }
-
-            favorites = JSON.parse(favorites);
-            var html = static.compileTemplate('index.html', { favorites: favorites, lastUrl: lastUrl });
-            res.end(new Buffer(html));
+    brain.recall('favorites').then(function(favorites) {
+        return JSON.parse(favorites);
+    }).then(function(favorites) {
+        return brain.recall('lastUrl').then(function(lastUrl) {
+            return { favorites: favorites, lastUrl: lastUrl };
         });
+    }).then(function(data) {
+        return static.fromTemplate(path, data);
+    }).then(function(html) {
+        res.status(200).end(new Buffer(html));
+    }).catch(function(err) {
+        res.status(503).end(JSON.stringify(err, null, 4));
     });
 });
 
-function handlePostRequest(req, res, cb) {
+function handlePostRequest(req, res) {
     var body = new Buffer(0);
+
     req.on('data', function(buf) {
         body = Buffer.concat([body, buf]);
     });
 
-    req.on('end', function() {
-        try {
-            body = querystring.parse(body.toString('utf-8'));
-        } catch (err) {
-            res.redirect('/');
-            cb(err, null);
-            return;
-        }
+    return new Promise(function(resolve, reject) {
+        req.on('error', function(err) {
+            reject(err);
+        });
 
-        console.log('[REQ] ' + JSON.stringify(body, null, 4));
+        req.on('end', function() {
+            try {
+                body = querystring.parse(body.toString('utf-8'));
+            } catch (err) {
+                reject(err);
+                return;
+            }
 
-        res.redirect('/');
-        cb(null, body);
+            console.log('[REQ] ' + JSON.stringify(body, null, 4));
+            resolve(body);
+        });
     });
 }
 
 app.post('/play_url', function(req, res) {
-    handlePostRequest(req, res, function(err, body) {
-        if(err) {
-            console.error(err);
-            return;
+    handlePostRequest(req, res).then(function(body) {
+        if(body.url) {
+            urlHandler.callHandler(body.url);
+            brain.remember('lastUrl', body.url);
         }
 
-        if(body.url) {
-            player.playUrl(body.url);
-        }
+        res.redirect('/');
+    }).catch(function(err) {
+        res.status(503).end(JSON.stringify(err, null, 4));
+        console.error(err);
     });
 });
 
 app.post('/save_favorites', function(req, res) {
-    handlePostRequest(req, res, function(err, body) {
-        if(err) {
-            console.error(err);
-            return;
-        }
-
+    handlePostRequest(req, res).then(function(body) {
         var favs = [];
         for(var i = 0; i < 9; i++) {
             favs.push(body['fav_' + (i + 1)]);
         }
 
-        console.log(favs);
         brain.remember('favorites', JSON.stringify(favs));
+        res.redirect('/');
+    }).catch(function(err) {
+        res.status(503).end(JSON.stringify(err, null, 4));
+        console.error(err);
     });
 });
 

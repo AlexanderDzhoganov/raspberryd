@@ -7,16 +7,16 @@ var currentProcess = null;
 
 var commands = {
     'twitch.tv': function(url) {
-        return 'livestreamer ' + url + ' source --fifo --player "omxplayer -r -o local"';
+        return 'livestreamer ' + url + ' source --fifo --player "omxplayer -o local"';
     },
     'www.twitch.tv': function(url) {
-        return 'livestreamer ' + url + ' source --fifo --player "omxplayer -r -o local"';
+        return 'livestreamer ' + url + ' source --fifo --player "omxplayer -o local"';
     },
     'www.youtube.com': function(url) {
-        return 'youtube-dl -qo - ' + url + ' > fifo | omxplayer -o local -r fifo';
+        return 'youtube-dl -qo - ' + url + ' > fifo | omxplayer -o local fifo';
     },
     'youtube.com': function(url) {
-        return 'youtube-dl -qo - ' + url + ' > fifo | omxplayer -o local -r fifo';
+        return 'youtube-dl -qo - ' + url + ' > fifo | omxplayer -o local fifo';
     },
     'default': function(url) {
         return 'xinit -e "/usr/bin/chromium-browser --kiosk ' + url + '"';

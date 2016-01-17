@@ -7,15 +7,19 @@ var util = require('./util');
 var fifo = require('./fifo');
 var remote = require('./remote');
 var gui = require('./gui');
+
 var twitchAPI = require('./twitch-api');
+var twitchChatWidget = require('./twitch-chat-widget');
 
 var livestreamer = null;
+
 var currentFifo = null;
 var currentUri = null;
 var currentQuality = 'high';
 var channelInfo = null;
 var channelBgImage = null;
 var channelLogo = null;
+var currentChat = null;
 
 var backgroundWnd = gui.createWindow((gui.screenSize.x - 1280) / 2, (gui.screenSize.y - 720) / 2, 1280, 720, 15);
 function setBackgroundImage(image) {
@@ -32,6 +36,12 @@ function openUri(uri, quality) {
     return twitchAPI.getChannelInfo(uri).then(function(info) {
         channelInfo = info;
         console.log('Channel info: ' + JSON.stringify(channelInfo));
+
+        if(currentChat) {
+            currentChat.destroy();
+        }
+
+        currentChat = twitchChatWidget(channelInfo.name, 0, gui.screenSize.y - 40, gui.screenSize.x, 40, 32);
 
         if(channelInfo.video_banner) {
             return gui.createImageFromUrl(channelInfo.video_banner);

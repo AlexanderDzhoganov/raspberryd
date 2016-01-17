@@ -20,6 +20,7 @@
     "express": "^4.13.3",
     "handlebars": "^4.0.5",
     "im-decode": "^0.1.2",
+    "irc": "^0.4.0",
     "jpeg-js": "^0.1.1",
     "lirc_node": "0.0.4",
     "lodash": "^4.0.0",

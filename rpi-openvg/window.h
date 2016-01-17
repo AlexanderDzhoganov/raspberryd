@@ -15,6 +15,7 @@ namespace OpenVG
         ~Window();
 
         static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+        static void Destroy(const v8::FunctionCallbackInfo<v8::Value>& args);
 
         static void SetPosition(const v8::FunctionCallbackInfo<v8::Value>& args);
         static void GetPosition(const v8::FunctionCallbackInfo<v8::Value>& args);

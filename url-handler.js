@@ -3,6 +3,7 @@ var url = require('url');
 
 var handlers = {};
 var cleanupHandler = null;
+var lastUrl = null;
 
 exports.callHandler = function(uri) {
     if(!uri.startsWith('http://') && !uri.startsWith('https://')) {
@@ -31,6 +32,8 @@ exports.callHandler = function(uri) {
                 cleanupHandler = null;
             }
 
+            lastUrl = uri;
+
             if(next.then) {
                 return next.then(function() {
                     return handlers[hostname].handler(uri);
@@ -51,4 +54,8 @@ exports.callHandler = function(uri) {
 exports.registerHandler = function(host, handler, cleanupHandler) {
     console.log('Registering handler for "' + host + '"');
     handlers[host] = { handler: handler, cleanupHandler: cleanupHandler };
+}
+
+exports.getLastUrl = function() {
+    return lastUrl;
 }

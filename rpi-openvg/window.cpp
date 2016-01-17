@@ -40,12 +40,6 @@ namespace OpenVG
     using v8::String;
     using v8::Value;
 
-    uint32_t RGBAtoBGRA(uint32_t color)
-    {
-        auto bytes = (unsigned char*)(&color);
-        return GRAPHICS_RGBA32(bytes[3], bytes[2], bytes[1], bytes[0]);
-    }
-
     bool Window::m_GxInitialized = false;
     Vector2ui Window::m_ScreenSize;
 
@@ -75,6 +69,8 @@ namespace OpenVG
 
         s = graphics_get_display_size(0, &m_ScreenSize.x, &m_ScreenSize.y);
         assert(s == 0);
+
+        m_GxInitialized = true;
     }
 
     void Window::Init(Local<Object> exports) {
@@ -86,6 +82,7 @@ namespace OpenVG
         tpl->InstanceTemplate()->SetInternalFieldCount(1);
 
         // Prototype
+        NODE_SET_PROTOTYPE_METHOD(tpl, "destroy", Destroy);
         NODE_SET_PROTOTYPE_METHOD(tpl, "setPosition", SetPosition);
         NODE_SET_PROTOTYPE_METHOD(tpl, "getPosition", GetPosition);
         NODE_SET_PROTOTYPE_METHOD(tpl, "setSize", SetSize);
@@ -131,16 +128,32 @@ namespace OpenVG
         }
     }
 
+    void Window::Destroy(const FunctionCallbackInfo<Value>& args) {
+        Isolate* isolate = args.GetIsolate();
+        Window* self = ObjectWrap::Unwrap<Window>(args.Holder());
+
+        graphics_display_resource(self->m_Handle, 0, self->m_Layer, 0, 0, GRAPHICS_RESOURCE_WIDTH, GRAPHICS_RESOURCE_HEIGHT, VC_DISPMAN_ROT0, 0);
+        graphics_delete_resource(self->m_Handle);
+        self->m_Handle = nullptr;
+    }
+
     Window::~Window()
     {
-        graphics_display_resource(m_Handle, 0, m_Layer, 0, 0, GRAPHICS_RESOURCE_WIDTH, GRAPHICS_RESOURCE_HEIGHT, VC_DISPMAN_ROT0, 0);
-        graphics_delete_resource(m_Handle);
+        if(m_Handle != nullptr) {
+            graphics_display_resource(m_Handle, 0, m_Layer, 0, 0, GRAPHICS_RESOURCE_WIDTH, GRAPHICS_RESOURCE_HEIGHT, VC_DISPMAN_ROT0, 0);
+            graphics_delete_resource(m_Handle);
+        }
     }
 
     void Window::SetPosition(const v8::FunctionCallbackInfo<v8::Value>& args)
     {
         Isolate* isolate = args.GetIsolate();
         Window* self = ObjectWrap::Unwrap<Window>(args.Holder());
+
+        if(self->m_Handle == nullptr) {
+            isolate->ThrowException(Exception::TypeError(
+                    String::NewFromUtf8(isolate, "Window used after being destroyed")));
+        }
 
         double x = args[0]->IsUndefined() ? 0.0 : args[0]->NumberValue();
         double y = args[1]->IsUndefined() ? 0.0 : args[1]->NumberValue();
@@ -170,6 +183,11 @@ namespace OpenVG
         Isolate* isolate = args.GetIsolate();
         Window* self = ObjectWrap::Unwrap<Window>(args.Holder());
 
+        if(self->m_Handle == nullptr) {
+            isolate->ThrowException(Exception::TypeError(
+                    String::NewFromUtf8(isolate, "Window used after being destroyed")));
+        }
+
         double width = args[0]->IsUndefined() ? 0.0 : args[0]->NumberValue();
         double height = args[1]->IsUndefined() ? 0.0 : args[1]->NumberValue();
 
@@ -187,6 +205,11 @@ namespace OpenVG
         Isolate* isolate = args.GetIsolate();
         Window* self = ObjectWrap::Unwrap<Window>(args.Holder());
 
+        if(self->m_Handle == nullptr) {
+            isolate->ThrowException(Exception::TypeError(
+                    String::NewFromUtf8(isolate, "Window used after being destroyed")));
+        }
+
         auto result = Object::New(isolate);
         result->Set(String::NewFromUtf8(isolate, "x"), Number::New(isolate, (double)self->m_Size.x));
         result->Set(String::NewFromUtf8(isolate, "y"), Number::New(isolate, (double)self->m_Size.y));
@@ -198,6 +221,11 @@ namespace OpenVG
         Isolate* isolate = args.GetIsolate();
         Window* self = ObjectWrap::Unwrap<Window>(args.Holder());
 
+        if(self->m_Handle == nullptr) {
+            isolate->ThrowException(Exception::TypeError(
+                    String::NewFromUtf8(isolate, "Window used after being destroyed")));
+        }
+
         auto result = Object::New(isolate);
         result->Set(String::NewFromUtf8(isolate, "x"), Number::New(isolate, (double)self->m_ScreenSize.x));
         result->Set(String::NewFromUtf8(isolate, "y"), Number::New(isolate, (double)self->m_ScreenSize.y));
@@ -208,6 +236,12 @@ namespace OpenVG
     {
         Isolate* isolate = args.GetIsolate();
         Window* self = ObjectWrap::Unwrap<Window>(args.Holder());
+
+        if(self->m_Handle == nullptr) {
+            isolate->ThrowException(Exception::TypeError(
+                    String::NewFromUtf8(isolate, "Window used after being destroyed")));
+        }
+
         self->m_IsHidden = false;
 
         auto status = graphics_display_resource(self->m_Handle, 0, self->m_Layer, 
@@ -220,6 +254,12 @@ namespace OpenVG
     {
         Isolate* isolate = args.GetIsolate();
         Window* self = ObjectWrap::Unwrap<Window>(args.Holder());
+
+        if(self->m_Handle == nullptr) {
+            isolate->ThrowException(Exception::TypeError(
+                    String::NewFromUtf8(isolate, "Window used after being destroyed")));
+        }
+
         self->m_IsHidden = true;
 
         auto status = graphics_display_resource(self->m_Handle, 0, self->m_Layer, 
@@ -233,6 +273,12 @@ namespace OpenVG
     {
         Isolate* isolate = args.GetIsolate();
         Window* self = ObjectWrap::Unwrap<Window>(args.Holder());
+
+        if(self->m_Handle == nullptr) {
+            isolate->ThrowException(Exception::TypeError(
+                    String::NewFromUtf8(isolate, "Window used after being destroyed")));
+        }
+
         args.GetReturnValue().Set(Boolean::New(isolate, !self->m_IsHidden));
     }
 
@@ -240,6 +286,12 @@ namespace OpenVG
     {
         Isolate* isolate = args.GetIsolate();
         Window* self = ObjectWrap::Unwrap<Window>(args.Holder());
+
+        if(self->m_Handle == nullptr) {
+            isolate->ThrowException(Exception::TypeError(
+                    String::NewFromUtf8(isolate, "Window used after being destroyed")));
+        }
+
         auto status = graphics_update_displayed_resource(self->m_Handle, 0, 0, 0, 0);
         args.GetReturnValue().Set(Number::New(isolate, (double)status));
     }
@@ -255,14 +307,19 @@ namespace OpenVG
         auto a_obj = obj->Get(String::NewFromUtf8(isolate, "a"));
         auto a = a_obj->IsUndefined() ? 0.0 : a_obj->NumberValue();
 
-        return GRAPHICS_RGBA32((unsigned char)(r * 255.0), (unsigned char)(g * 255.0),
-                (unsigned char)(b * 255.0), (unsigned char)(a * 255.0));
+        return GRAPHICS_RGBA32((unsigned char)(b * 255.0), (unsigned char)(g * 255.0),
+                (unsigned char)(r * 255.0), (unsigned char)(a * 255.0));
     }
 
     void Window::Fill(const v8::FunctionCallbackInfo<v8::Value>& args)
     {
         Isolate* isolate = args.GetIsolate();
         Window* self = ObjectWrap::Unwrap<Window>(args.Holder());
+
+        if(self->m_Handle == nullptr) {
+            isolate->ThrowException(Exception::TypeError(
+                    String::NewFromUtf8(isolate, "Window used after being destroyed")));
+        }
 
         double x = args[0]->IsUndefined() ? 0 : args[0]->NumberValue();
         double y = args[1]->IsUndefined() ? 0 : args[1]->NumberValue();
@@ -284,6 +341,11 @@ namespace OpenVG
     {
         Isolate* isolate = args.GetIsolate();
         Window* self = ObjectWrap::Unwrap<Window>(args.Holder());
+
+        if(self->m_Handle == nullptr) {
+            isolate->ThrowException(Exception::TypeError(
+                    String::NewFromUtf8(isolate, "Window used after being destroyed")));
+        }
 
         double x = args[0]->IsUndefined() ? 0 : args[0]->NumberValue();
         double y = args[1]->IsUndefined() ? 0 : args[1]->NumberValue();
@@ -332,6 +394,11 @@ namespace OpenVG
         Isolate* isolate = args.GetIsolate();
         Window* self = ObjectWrap::Unwrap<Window>(args.Holder());
 
+        if(self->m_Handle == nullptr) {
+            isolate->ThrowException(Exception::TypeError(
+                    String::NewFromUtf8(isolate, "Window used after being destroyed")));
+        }
+
         auto str = args[0]->ToString();
         v8::String::Utf8Value text(str);
 
@@ -340,8 +407,8 @@ namespace OpenVG
         uint32_t width = 0, height = 0;
         graphics_resource_text_dimensions_ext(self->m_Handle, *text, str->Length(), &width, &height, (uint32_t)size);
         auto result = Object::New(isolate);
-        result->Set(String::NewFromUtf8(isolate, "width"), Number::New(isolate, (double)width));
-        result->Set(String::NewFromUtf8(isolate, "height"), Number::New(isolate, (double)height));
+        result->Set(String::NewFromUtf8(isolate, "x"), Number::New(isolate, (double)width));
+        result->Set(String::NewFromUtf8(isolate, "y"), Number::New(isolate, (double)height));
         args.GetReturnValue().Set(result);
     }
 
@@ -349,6 +416,11 @@ namespace OpenVG
     {
         Isolate* isolate = args.GetIsolate();
         Window* self = ObjectWrap::Unwrap<Window>(args.Holder());
+
+        if(self->m_Handle == nullptr) {
+            isolate->ThrowException(Exception::TypeError(
+                    String::NewFromUtf8(isolate, "Window used after being destroyed")));
+        }
         
         auto pixels = node::Buffer::Data(args[0]->ToObject());
 
@@ -394,6 +466,11 @@ namespace OpenVG
     {
         Isolate* isolate = args.GetIsolate();
         Window* self = ObjectWrap::Unwrap<Window>(args.Holder());
+
+        if(self->m_Handle == nullptr) {
+            isolate->ThrowException(Exception::TypeError(
+                    String::NewFromUtf8(isolate, "Window used after being destroyed")));
+        }
         
         uint32_t srcX = args[0]->IsUndefined() ? 0 : args[0]->NumberValue();
         uint32_t srcY = args[1]->IsUndefined() ? 0 : args[1]->NumberValue();        
@@ -411,6 +488,11 @@ namespace OpenVG
     {
         Isolate* isolate = args.GetIsolate();
         Window* self = ObjectWrap::Unwrap<Window>(args.Holder());
+
+        if(self->m_Handle == nullptr) {
+            isolate->ThrowException(Exception::TypeError(
+                    String::NewFromUtf8(isolate, "Window used after being destroyed")));
+        }
         
         Image* img = ObjectWrap::Unwrap<Image>(args[4]->ToObject());
         auto& size = img->m_Size;

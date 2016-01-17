@@ -8,8 +8,11 @@ var app = express();
 
 var static = require('./static');
 var brain = require('./brain');
-//var remote = require('./remote');
+var remote = require('./remote');
 var gui = require('./gui');
+var loadingPopup = gui.createPopup('Now loading', null);
+
+var clock = require('./clock-widget');
 
 var urlHandler = require('./url-handler');
 var twitchHandler = require('./twitch-handler');
@@ -87,6 +90,7 @@ app.post('/play_url', function(req, res) {
     handlePostRequest(req, res).then(function(body) {
         if(body.url) {
             urlHandler.callHandler(body.url);
+            gui.createPopup('Switching to "' + body.url + '"', 5);
             brain.remember('lastUrl', body.url);
         }
 
@@ -114,4 +118,9 @@ app.post('/save_favorites', function(req, res) {
 
 app.listen(3000, function () {
     console.log('Raspberryd listening on port 3000!');
+
+    setTimeout(function() {
+        loadingPopup.fadeOut();
+        loadingPopup = null;
+    }, 4000);
 });

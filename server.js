@@ -10,7 +10,12 @@ var static = require('./static');
 var brain = require('./brain');
 var remote = require('./remote');
 var gui = require('./gui');
-var loadingPopup = gui.createPopup('Now loading', null);
+
+var bgWindow = gui.createWindow(0, 0, gui.screenSize.x, gui.screenSize.y, 1);
+gui.createImageFromFile('raspberry.jpg').then(function(bgImage) {
+    bgWindow.drawImage(0, 0, gui.screenSize.x, gui.screenSize.y, bgImage);
+    bgWindow.update();
+});
 
 var clock = require('./clock-widget');
 
@@ -90,7 +95,7 @@ app.post('/play_url', function(req, res) {
     handlePostRequest(req, res).then(function(body) {
         if(body.url) {
             urlHandler.callHandler(body.url);
-            gui.createPopup('Switching to "' + body.url + '"', 5);
+            new gui.widgets.popup('Switching to "' + body.url + '"', 5);
             brain.remember('lastUrl', body.url);
         }
 
@@ -118,9 +123,4 @@ app.post('/save_favorites', function(req, res) {
 
 app.listen(3000, function () {
     console.log('Raspberryd listening on port 3000!');
-
-    setTimeout(function() {
-        loadingPopup.fadeOut();
-        loadingPopup = null;
-    }, 4000);
 });

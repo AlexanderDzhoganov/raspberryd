@@ -1,9 +1,20 @@
-var openvg = require('rpi-openvg')();
+var fs = require('fs');
 var request = require('request');
 var png = require('pngjs').PNG;
+var jpeg = require('jpeg-js');
 var _ = require('lodash');
 
-var screenSize = new openvg.Window(0, 0, 16, 16, 0).getDisplaySize();
+var openvg = require('rpi-openvg')();
+
+function getScreenSize() {
+    var tmp = new openvg.Window(0, 0, 16, 16, 0);
+    var screenSize = tmp.getDisplaySize();
+    tmp.destroy();
+    tmp = null;
+    return screenSize;
+};
+
+exports.screenSize = getScreenSize();
 
 function rgba(r, g, b, a) {
     return {
@@ -33,12 +44,86 @@ var colors = {
 exports.colors = colors;
 exports.rgba = rgba;
 
+var windows = [];
+
+function onExit() {
+    console.log('Destroying ' + windows.length + ' windows');
+
+    _.each(windows, function(window) {
+        window.destroy();
+    });
+
+    process.exit(0);    
+}
+
+process.on('SIGHUP', onExit);
+process.on('SIGTERM', onExit);
+process.on('SIGINT', onExit);
+
 exports.createWindow = function(x, y, width, height, layer) {
-    return new openvg.Window(x, y, width, height, layer);
+    var wnd = new openvg.Window(x, y, width, height, layer);
+    windows.push(wnd);
+    return wnd;
 };
 
 exports.createImage = function(width, height) {
     return new openvg.Image(width, height);
+};
+
+function getFileExtension(url) {
+    return url.split('.').pop();
+}
+
+exports.createImageFromBuffer = function(extension, buffer) {
+    return new Promise(function(resolve, reject) {
+        if(extension === 'png') {
+            new png({}).parse(buffer).on('parsed', function() {
+                var img = new openvg.Image(this.width, this.height);
+                var status = img.setPixels(this.data, this.width, this.height);
+                if(status !== 0) {
+                    reject('Failed to setPixels, status: ' + status);
+                    return;
+                }
+
+                resolve(img);
+            }).on('error', function(err) {
+                reject(err);
+            });
+        } else if(extension === 'jpeg' || extension === 'jpg') {
+            var image = jpeg.decode(buffer);
+            if(!image) {
+                reject('failed to decode jpeg');
+                return;
+            }
+
+            var img = new openvg.Image(image.width, image.height);
+            var status = img.setPixels(image.data, image.width, image.height);
+            if(status !== 0) {
+                reject('Failed to setPixels, status: ' + status);
+                return;
+            }
+
+            resolve(img);
+        } else {
+            reject('unknown image extension: ' + extension);
+        }
+    });
+};
+
+exports.createImageFromFile = function(path) {
+    return new Promise(function(resolve, reject) {
+        fs.readFile(path, function(err, buffer) {
+            if(err) {
+                reject(err);
+                return;
+            }
+
+            resolve(buffer);
+        });
+    }).then(function(buffer) {
+        var extension = getFileExtension(path);
+        return exports.createImageFromBuffer(extension, buffer);    
+    });
 };
 
 exports.createImageFromUrl = function(url) {
@@ -53,103 +138,15 @@ exports.createImageFromUrl = function(url) {
                 return;
             }
 
-            new png({}).parse(body).on('parsed', function() {
-                img = new openvg.Image(this.width, this.height);
-                var status = img.setPixels(this.data, this.width, this.height);
-                if(status !== 0) {
-                    reject('Failed to setPixels, status: ' + status);
-                    return;
-                }
-
-                resolve(img);
-            }).on('error', function(err) {
-                reject(err);
-            });
+            resolve(body);
         });
-    });
+    }).then(function(buffer) {
+        var extension = getFileExtension(url);
+        return exports.createImageFromBuffer(extension, buffer);
+    }); 
 };
 
-exports.createPopup = function(text, timeout, opts) {
-    var wnd = new openvg.Window(0, 0, screenSize.x, screenSize.y, 1000);
-
-    if(!opts) {
-        opts = {};
-    }
-
-    var fontSize = 32;
-    if(opts.fontSize) {
-        fontSize = opts.fontSize;
-    }
-
-    var textSize = wnd.measureText(text, fontSize);
-
-    var padding = 48;
-    if(opts.padding) {
-        padding = opts.padding;
-    }
-
-    var border = 2;
-    if(opts.border) {
-        border = opts.border;
-    }
-
-    var bgColor = colors.gray;
-    if(opts.bgColor) {
-        bgColor = opts.bgColor;
-    }
-
-    var borderColor = colors.lightgray;
-    if(opts.borderColor) {
-        borderColor = opts.borderColor;
-    }
-
-    var textColor = colors.white;
-    if(opts.textColor) {
-        textColor = opts.textColor;
-    }
-
-    var width = textSize.x + padding * 2 + border * 2;
-    var height = textSize.y + padding + border * 2;
-
-    var x = (screenSize.x - width) / 2;
-    var y = (screenSize.y - height) / 2;
-
-    var alpha = 1.0;
-
-    function drawWindow() {
-        wnd.fill(x, y, width, height, borderColor.set('a', alpha));
-        wnd.fill(x + border, y + border, width - border * 2, height - border * 2, bgColor.set('a', alpha));
-
-        wnd.drawText(x + (width - textSize.x) / 2, y + (height - textSize.y) / 2, text, 
-            fontSize, textColor.set('a', alpha), bgColor.set('a', alpha));
-        wnd.update();
-    }
-
-    var fadingOut = false;
-    wnd.fadeOut = function() {
-        if(!fadingOut) {
-            fadingOut = true;
-        } else {
-            return;
-        }
-
-        var interval = setInterval(function() {
-            drawWindow();
-            alpha -= 0.05;
-            if(alpha <= 0.0) {
-                clearInterval(interval);
-                wnd.hide();
-            }
-        }, 16);
-    }
-
-    drawWindow();
-
-    if(timeout) {
-        setTimeout(function() {
-            wnd.fadeOut();
-        }, timeout * 1000);
-    }
-
-    return wnd;
+exports.widgets = {
+    popup: require('./popup-widget'),
+    select: require('./select-widget')
 };

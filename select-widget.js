@@ -16,16 +16,16 @@ remote.onAnyButtonPressed(function(btn) {
     btnCallback(btn);
 }, 500);
 
-exports.createWidget = function(title, options, selected, cb) {
+module.exports = function(title, options, selected, cb) {
     if(currentWnd) {
         currentWnd.destroy();
         currentWnd = null;
     }
 
-    var wnd = gui.createWindow(0, 0, screenSize.x, screenSize.y, 250);
-    currentWnd = wnd;
+    currentWnd = gui.createWindow(0, 0, screenSize.x, screenSize.y, 250);
+    var wnd = currentWnd;
 
-    wnd.closeWidget = function() {
+    wnd.destroy = function() {
         if(wnd) {
             wnd.destroy();
             wnd = null;

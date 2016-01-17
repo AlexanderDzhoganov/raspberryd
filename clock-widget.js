@@ -1,12 +1,6 @@
 var gui = require('./gui');
 
-var wnd = gui.createWindow(0, 4, 200, 32, 10);
-var screenSize = wnd.getDisplaySize();
-wnd.setPosition(screenSize.x - 200, 4);
-
-process.on('exit', function() {
-    wnd.destroy();
-});
+var wnd = gui.createWindow(gui.screenSize.x - 200, 4, 200, 32, 10);
 
 function draw() {
     var date = new Date();
@@ -38,7 +32,7 @@ function draw() {
         second = second.toString();
     }
 
-    wnd.drawText(0, 0, hour + ':' + minute + ':' + second + ' ' + ampm, 32, gui.colors.white, gui.colors.black);
+    wnd.drawText(0, 0, hour + ':' + minute + ':' + second + ' ' + ampm, 32, gui.colors.white, gui.colors.transparent);
     wnd.update();
 }
 

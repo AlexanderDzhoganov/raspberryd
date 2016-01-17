@@ -76,7 +76,7 @@ namespace OpenVG
         if (args.IsConstructCall()) {
             // Invoked as constructor: `new MyObject(...)`
             double width = args[0]->IsUndefined() ? 0 : args[0]->NumberValue();
-            double height = args[0]->IsUndefined() ? 0 : args[0]->NumberValue();
+            double height = args[1]->IsUndefined() ? 0 : args[1]->NumberValue();
 
             Vector2ui size((uint32_t)width, (uint32_t)height);
 

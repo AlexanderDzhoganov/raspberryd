@@ -7,7 +7,6 @@ var util = require('./util');
 var fifo = require('./fifo');
 var remote = require('./remote');
 var gui = require('./gui');
-var selectWidget = require('./select-widget');
 var twitchAPI = require('./twitch-api');
 
 var livestreamer = null;
@@ -15,6 +14,14 @@ var currentFifo = null;
 var currentUri = null;
 var currentQuality = 'high';
 var channelInfo = null;
+var channelBgImage = null;
+var channelLogo = null;
+
+var backgroundWnd = gui.createWindow(0, 0, gui.screenSize.x, gui.screenSize.y, 15);
+function setBackgroundImage(image) {
+    backgroundWnd.drawImage(0, 0, gui.screenSize.x, gui.screenSize.y, image);
+    backgroundWnd.update();
+}
 
 var qualityWidget = null;
 var qualityOpts = ['source', 'high', 'medium', 'low', 'mobile', 'audio'];
@@ -26,7 +33,26 @@ function openUri(uri, quality) {
         channelInfo = info;
         console.log('Channel info: ' + JSON.stringify(channelInfo));
 
-        gui.createPopup(channelInfo.status, 4);
+        if(channelInfo.video_banner) {
+            return gui.createImageFromUrl(channelInfo.video_banner);
+        }
+
+        return null;
+    }).then(function(image) {
+        channelBgImage = image;
+        if(channelBgImage) {
+            setBackgroundImage(channelBgImage);
+        }
+
+        if(channelInfo.logo) {
+            return gui.createImageFromUrl(channelInfo.logo);
+        }
+        
+        return null;
+    }).then(function(logo) {
+        channelLogo = logo;
+
+        new gui.widgets.popup(channelInfo.status, 4);
 
         if(channelInfo.partner) {
             qualityOpts = ['source', 'high', 'medium', 'low', 'mobile', 'audio'];
@@ -44,15 +70,22 @@ function openUri(uri, quality) {
         }
 
         livestreamer = child_process.spawn('livestreamer', [uri, currentQuality, '--quiet', '--stdout'], {
-            stdio: ['ignore', 'pipe', process.stderr]
+            stdio: ['ignore', 'pipe', 'ignore']
+        });
+
+        livestreamer.on('error', function(err) {
+            console.error('Livestreamer error: ' + err.toString());
+        });
+
+        livestreamer.on('exit', function(code, signal) {
+            console.log('Livestreamer terminated, code: ' + code + ', signal: ' + signal);
         });
 
         return fifo.createFifo().then(function(fifo) {
             currentFifo = fifo;
             livestreamer.stdout.pipe(fs.createWriteStream(currentFifo)).on('error', function(err) {
-                console.error(err.toString());
+                console.error('Livestreamer pipe error: ' + err.toString());
                 livestreamer.kill('SIGKILL');
-                return openUri(uri);
             });
 
             console.log('Piping data to ' + currentFifo);
@@ -60,7 +93,7 @@ function openUri(uri, quality) {
         });
     }).catch(function(err) {
         console.error(err);
-        gui.createPopup(err.toString(), 6);
+        new gui.widgets.popup(err.toString(), 6);
     });
 };
 
@@ -90,30 +123,41 @@ remote.onButtonPressed('KEY_CHANNEL', function() {
     if(currentUri) {
         var str = currentUri + ' [' + currentQuality + ']' +
             '\n' + channelInfo.status;
-        gui.createPopup(str, 2);
+        new gui.widgets.popup(str, 2, {
+            onDraw: function(wnd) {
+                if(channelLogo) {
+                    var size = { x: 300, y: 300 };
+                    wnd.drawImage((gui.screenSize.x - size.x) / 2, gui.screenSize.y - size.y - 16, size.x, size.y, channelLogo);
+                }
+            }
+        });
     }
 }, 1000);
 
 remote.onButtonPressed('KEY_EQUAL', function() {
     if(qualityWidget) {
-        qualityWidget.closeWidget();
+        qualityWidget.destroy();
         qualityWidget = null;
         return;
     }
 
     if(!qualityOpts) {
-        gui.createPopup('No quality options on non-partnered streams.', 4);
+        new gui.widgets.popup('No quality options on non-partnered streams.', 4);
         return;
     }
 
-    qualityWidget = selectWidget.createWidget('Select quality:', qualityOpts, currentQuality, function(err, quality) {
+    qualityWidget = new gui.widgets.select('Select quality:', qualityOpts, currentQuality, function(err, quality) {
         if(err) {
             console.error(err);
             return;
         }
 
+        if(currentQuality == quality) {
+            return;
+        }
+
         currentQuality = quality;
-        gui.createPopup('Stream quality is now [' + currentQuality + ']', 5);
+        new gui.widgets.popup('Stream quality is now [' + currentQuality + ']', 5);
 
         var uri = currentUri;
         closeUri().then(function() {

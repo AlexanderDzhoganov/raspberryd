@@ -508,12 +508,12 @@ namespace OpenVG
         vgGetError();
         vgSeti(VG_MATRIX_MODE, VG_MATRIX_IMAGE_USER_TO_SURFACE);
         vgLoadIdentity();
-//        vgTranslate(0.0, size.y / 2);
-        vgTranslate(0, dstHeight);
-        vgTranslate(dstX, dstY);
+        vgTranslate(0.0f, m_ScreenSize.y);
+        vgScale(1.0f, -1.0f);
+
         vgScale((float)dstWidth / (float)size.x, (float)dstHeight / (float)size.y);
-        //
-        vgScale(1.0, -1.0);
+        vgTranslate(dstX, dstY);
+
         vgDrawImage(img->m_Handle->u.pixmap);
         vgLoadIdentity();
 

@@ -126,10 +126,10 @@ namespace OpenVG
             char b = pixels[(x * 4) + (y * srcWidth * 4) + 2];
             char a = pixels[(x * 4) + (y * srcWidth * 4) + 3];
 
-            copy[(x * 4) + ((srcHeight - y - 1) * srcWidth * 4) + 0] = a;
-            copy[(x * 4) + ((srcHeight - y - 1) * srcWidth * 4) + 1] = b;
-            copy[(x * 4) + ((srcHeight - y - 1) * srcWidth * 4) + 2] = g;
-            copy[(x * 4) + ((srcHeight - y - 1) * srcWidth * 4) + 3] = r;
+            copy[(x * 4) + (y * srcWidth * 4) + 0] = b;
+            copy[(x * 4) + (y * srcWidth * 4) + 1] = g;
+            copy[(x * 4) + (y * srcWidth * 4) + 2] = r;
+            copy[(x * 4) + (y * srcWidth * 4) + 3] = a;
         }
 
         auto result = graphics_userblt(GRAPHICS_RESOURCE_RGBA32, copy, 0, 0, srcWidth, srcHeight, srcWidth * 4, self->m_Handle, 0, 0);

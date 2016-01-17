@@ -22,7 +22,7 @@ int32_t graphics_bitblt( const GRAPHICS_RESOURCE_HANDLE src,
                          const uint32_t height,
                          GRAPHICS_RESOURCE_HANDLE dest,
                          const uint32_t x_pos,
-                         const uint32_t y_pos )
+                         const uint32_t y_pos );
 
 namespace OpenVG
 {
@@ -402,7 +402,7 @@ namespace OpenVG
 
         Image* img = ObjectWrap::Unwrap<Image>(args[4]->ToObject());
 
-        auto status = graphics_bitblt(img->m_Handle, srcX, srcY, img->m_Size.x, img->m_Size.y, m_Handle, dstX, dstY);
+        auto status = graphics_bitblt(img->m_Handle, srcX, srcY, img->m_Size.x, img->m_Size.y, self->m_Handle, dstX, dstY);
 
         args.GetReturnValue().Set(Number::New(isolate, (double)status));
     }
@@ -424,10 +424,16 @@ namespace OpenVG
         gx_priv_save(&save, self->m_Handle);
 
         vgGetError();
+        vgSeti(VG_MATRIX_MODE, VG_MATRIX_IMAGE_USER_TO_SURFACE);
         vgLoadIdentity();
-        vgScale((float)dstWidth / (float)size.x, (float)dstHeight / (float)size.y);
+//        vgTranslate(0.0, size.y / 2);
+        vgTranslate(0, dstHeight);
         vgTranslate(dstX, dstY);
-        vgDrawImage(img->m_Handle);
+        vgScale((float)dstWidth / (float)size.x, (float)dstHeight / (float)size.y);
+        //
+        vgScale(1.0, -1.0);
+        vgDrawImage(img->m_Handle->u.pixmap);
+        vgLoadIdentity();
 
         auto err = vgGetError();
         gx_priv_restore(&save);

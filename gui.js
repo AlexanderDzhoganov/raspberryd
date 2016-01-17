@@ -44,13 +44,13 @@ var colors = {
 exports.colors = colors;
 exports.rgba = rgba;
 
-var windows = [];
+var resources = [];
 
 function onExit() {
-    console.log('Destroying ' + windows.length + ' windows');
+    console.log('Destroying ' + resources.length + ' resources');
 
-    _.each(windows, function(window) {
-        window.destroy();
+    _.each(resources, function(res) {
+        res.destroy();
     });
 
     process.exit(0);    
@@ -59,21 +59,23 @@ function onExit() {
 process.on('SIGHUP', onExit);
 process.on('SIGTERM', onExit);
 process.on('SIGINT', onExit);
-
+/*
 process.on('uncaughtException', (err) => {
     console.error(err.toString());
     console.error(err.stack);
     onExit();
-});
+});*/
 
 exports.createWindow = function(x, y, width, height, layer) {
     var wnd = new openvg.Window(x, y, width, height, layer);
-    windows.push(wnd);
+    resources.push(wnd);
     return wnd;
 };
 
 exports.createImage = function(width, height) {
-    return new openvg.Image(width, height);
+    var img = new openvg.Image(width, height);
+    resources.push(img);
+    return img;
 };
 
 function getFileExtension(url) {
@@ -84,7 +86,8 @@ exports.createImageFromBuffer = function(extension, buffer) {
     return new Promise(function(resolve, reject) {
         if(extension === 'png') {
             new png({}).parse(buffer).on('parsed', function() {
-                var img = new openvg.Image(this.width, this.height);
+                var img = exports.createImage(this.width, this.height);
+
                 var status = img.setPixels(this.data, this.width, this.height);
                 if(status !== 0) {
                     reject('Failed to setPixels, status: ' + status);
@@ -102,7 +105,7 @@ exports.createImageFromBuffer = function(extension, buffer) {
                 return;
             }
 
-            var img = new openvg.Image(image.width, image.height);
+            var img = exports.createImage(image.width, image.height);
             var status = img.setPixels(image.data, image.width, image.height);
             if(status !== 0) {
                 reject('Failed to setPixels, status: ' + status);
@@ -154,5 +157,6 @@ exports.createImageFromUrl = function(url) {
 
 exports.widgets = {
     popup: require('./popup-widget'),
-    select: require('./select-widget')
+    select: require('./select-widget'),
+    carousel: require('./carousel-widget')
 };

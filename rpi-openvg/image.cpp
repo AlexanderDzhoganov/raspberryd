@@ -62,6 +62,7 @@ namespace OpenVG
         tpl->InstanceTemplate()->SetInternalFieldCount(1);
 
         // Prototype
+        NODE_SET_PROTOTYPE_METHOD(tpl, "destroy", Destroy);
         NODE_SET_PROTOTYPE_METHOD(tpl, "getSize", GetSize);
         NODE_SET_PROTOTYPE_METHOD(tpl, "setPixels", SetPixels);
 
@@ -92,7 +93,20 @@ namespace OpenVG
 
     Image::~Image()
     {
-        vgDestroyImage(m_Handle);
+        if(m_Handle) {
+            graphics_delete_resource(m_Handle);
+        }
+    }
+
+    void Image::Destroy(const v8::FunctionCallbackInfo<v8::Value>& args)
+    {
+        Isolate* isolate = args.GetIsolate();
+        Image* self = ObjectWrap::Unwrap<Image>(args.Holder());
+
+        if(self->m_Handle) {
+            graphics_delete_resource(self->m_Handle);
+            self->m_Handle = nullptr;
+        }
     }
 
     void Image::GetSize(const v8::FunctionCallbackInfo<v8::Value>& args)

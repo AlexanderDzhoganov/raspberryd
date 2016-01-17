@@ -1,5 +1,6 @@
 var child_process = require('child_process');
 var fs = require('fs');
+var _ = require('lodash');
 
 var urlHandler = require('./url-handler');
 var omxplayer = require('./omxplayer');
@@ -30,6 +31,8 @@ function setBackgroundImage(image) {
 
 var qualityWidget = null;
 var favoritesWidget = null;
+var streamsWidget = null;
+
 var qualityOpts = ['source', 'high', 'medium', 'low', 'mobile', 'audio'];
 
 function openUri(uri, quality) {
@@ -228,6 +231,32 @@ remote.onButtonPressed('KEY_ESC', function() {
         qualityWidget.destroy();
         qualityWidget = null;
     }
-});
+}, 500);
+
+remote.onButtonPressed('KEY_F1', function() {
+    if(streamsWidget) {
+        streamsWidget.destroy();
+        streamsWidget = null;
+        return;
+    }
+
+    var popup = new gui.widgets.popup('Loading info..');
+    twitchAPI.getGames().then(function(games) {
+        streamsWidget = new gui.widgets.carousel(_.map(games.top, function(info) {
+            return {
+                imageUrl: info.game.box.large,
+                title: info.game.name
+            };
+        }), function(err, selected) {
+
+        }, function() {
+            popup.destroy();
+        });
+    }).catch(function(err) {
+        popup.destroy();
+        new gui.widgets.popup(err.toString(), 4);
+        console.error(err);
+    });
+}, 500);
 
 urlHandler.registerHandler('twitch.tv', openUri, closeUri);

@@ -197,15 +197,19 @@ namespace OpenVG
         Isolate* isolate = args.GetIsolate();
         Window* self = ObjectWrap::Unwrap<Window>(args.Holder());
 
-        graphics_display_resource(self->m_Handle, 0, self->m_Layer, 0, 0, GRAPHICS_RESOURCE_WIDTH, GRAPHICS_RESOURCE_HEIGHT, VC_DISPMAN_ROT0, 0);
-        graphics_delete_resource(self->m_Handle);
-        self->m_Handle = nullptr;
+        if(self->m_Handle) {
+            graphics_display_resource(self->m_Handle, 0, self->m_Layer, 
+                0, 0, GRAPHICS_RESOURCE_WIDTH, GRAPHICS_RESOURCE_HEIGHT, VC_DISPMAN_ROT0, 0);
+            graphics_delete_resource(self->m_Handle);
+            self->m_Handle = nullptr;            
+        }
     }
 
     Window::~Window()
     {
-        if(m_Handle != nullptr) {
-            graphics_display_resource(m_Handle, 0, m_Layer, 0, 0, GRAPHICS_RESOURCE_WIDTH, GRAPHICS_RESOURCE_HEIGHT, VC_DISPMAN_ROT0, 0);
+        if(m_Handle) {
+            graphics_display_resource(m_Handle, 0, m_Layer, 
+                0, 0, GRAPHICS_RESOURCE_WIDTH, GRAPHICS_RESOURCE_HEIGHT, VC_DISPMAN_ROT0, 0);
             graphics_delete_resource(m_Handle);
         }
     }
@@ -619,8 +623,8 @@ namespace OpenVG
         vgTranslate(0.0f, self->m_Size.y);
         vgScale(1.0f, -1.0f);
 
-        vgScale((float)dstWidth / (float)size.x, (float)dstHeight / (float)size.y);
         vgTranslate(dstX, dstY);
+        vgScale((float)dstWidth / (float)size.x, (float)dstHeight / (float)size.y);
 
         vgDrawImage(img->m_Handle->u.pixmap);
         vgLoadIdentity();

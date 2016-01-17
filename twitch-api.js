@@ -27,3 +27,28 @@ exports.getChannelInfo = function(uri) {
         });
     });
 };
+
+exports.getGames = function(limit, offset) {
+    if(!limit) {
+        limit = 10;
+    }
+
+    if(!offset) {
+        offset = 0;
+    }
+
+    return new Promise(function(resolve, reject) {
+        request({
+            method: 'GET',
+            uri: 'https://api.twitch.tv/kraken/games/top?limit=' + limit + '&offset=' + offset,
+            json: true
+        }, function(err, res, body) {
+            if(err) {
+                reject(err);
+                return;
+            }
+
+            resolve(body);
+        });
+    });
+};

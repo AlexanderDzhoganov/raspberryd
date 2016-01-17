@@ -11,6 +11,7 @@
 
 #include "vector2.h"
 #include "window.h"
+#include "image.h"
 
 namespace OpenVG
 {
@@ -27,8 +28,9 @@ using v8::Number;
 void init(Local<Object> exports)
 {
     Window::Init(exports);
+    Image::Init(exports);
 }
 
 NODE_MODULE(openvg, init)
 
-}  // namespace demo
+}

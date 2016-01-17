@@ -3,9 +3,26 @@
 #include "vector2.h"
 #include "bcm_host.h"
 #include "vgfont.h"
+#include "graphics_x_private.h"
 #include "window.h"
+#include "image.h"
 
 #include <iostream>
+
+#include <node.h>
+#include <node_buffer.h>
+
+void gx_priv_save(GX_CLIENT_STATE_T *state, GRAPHICS_RESOURCE_HANDLE res);
+void gx_priv_restore(GX_CLIENT_STATE_T *state);
+
+int32_t graphics_bitblt( const GRAPHICS_RESOURCE_HANDLE src,
+                         const uint32_t x, // offset within source
+                         const uint32_t y, // offset within source
+                         const uint32_t width,
+                         const uint32_t height,
+                         GRAPHICS_RESOURCE_HANDLE dest,
+                         const uint32_t x_pos,
+                         const uint32_t y_pos )
 
 namespace OpenVG
 {
@@ -26,66 +43,7 @@ namespace OpenVG
     uint32_t RGBAtoBGRA(uint32_t color)
     {
         auto bytes = (unsigned char*)(&color);
-        uint32_t result = 0;
-        auto ptr = (unsigned char*)(&result);
-        ptr[0] = bytes[2];
-        ptr[1] = bytes[1];
-        ptr[2] = bytes[0];
-        ptr[3] = bytes[3];
-        return result;
-    }
-
-    static const char *strnchr(const char *str, size_t len, char c)
-    {
-       const char *e = str + len;
-       do {
-          if (*str == c) {
-             return str;
-          }
-       } while (++str < e);
-       return NULL;
-    }
-
-    int32_t render_subtitle(GRAPHICS_RESOURCE_HANDLE img, const char *text, const int skip, const uint32_t text_size, const uint32_t y_offset)
-    {
-       uint32_t text_length = strlen(text)-skip;
-       uint32_t width=0, height=0;
-       const char *split = text;
-       int32_t s=0;
-       int len = 0; // length of pre-subtitle
-       uint32_t img_w, img_h;
-
-       graphics_get_resource_size(img, &img_w, &img_h);
-
-       if (text_length==0)
-          return 0;
-       while (split[0]) {
-          s = graphics_resource_text_dimensions_ext(img, split, text_length-(split-text), &width, &height, text_size);
-          if (s != 0) return s;
-          if (width > img_w) {
-             const char *space = strnchr(split, text_length-(split-text), ' ');
-             if (!space) {
-                len = split+1-text;
-                split = split+1;
-             } else {
-                len = space-text;
-                split = space+1;
-             }
-          } else {
-             break;
-          }
-       }
-       // split now points to last line of text. split-text = length of initial text. text_length-(split-text) is length of last line
-       if (width) {
-          s = graphics_resource_render_text_ext(img, (img_w - width)>>1, y_offset-height,
-                                         GRAPHICS_RESOURCE_WIDTH,
-                                         GRAPHICS_RESOURCE_HEIGHT,
-                                         GRAPHICS_RGBA32(0xff,0xff,0xff,0xff), /* fg */
-                                         GRAPHICS_RGBA32(0,0,0,0x80), /* bg */
-                                         split, text_length-(split-text), text_size);
-          if (s!=0) return s;
-       }
-       return render_subtitle(img, text, skip+text_length-len, text_size, y_offset - height);
+        return GRAPHICS_RGBA32(bytes[3], bytes[2], bytes[1], bytes[0]);
     }
 
     bool Window::m_GxInitialized = false;
@@ -140,6 +98,9 @@ namespace OpenVG
         NODE_SET_PROTOTYPE_METHOD(tpl, "fill", Fill);
         NODE_SET_PROTOTYPE_METHOD(tpl, "drawText", DrawText);
         NODE_SET_PROTOTYPE_METHOD(tpl, "measureText", MeasureText);
+        NODE_SET_PROTOTYPE_METHOD(tpl, "blitPixels", BlitPixels);
+        NODE_SET_PROTOTYPE_METHOD(tpl, "blitImage", BlitImage);
+        NODE_SET_PROTOTYPE_METHOD(tpl, "drawImage", DrawImage);
 
         constructor.Reset(isolate, tpl->GetFunction());
         exports->Set(String::NewFromUtf8(isolate, "Window"),
@@ -178,6 +139,7 @@ namespace OpenVG
 
     void Window::SetPosition(const v8::FunctionCallbackInfo<v8::Value>& args)
     {
+        Isolate* isolate = args.GetIsolate();
         Window* self = ObjectWrap::Unwrap<Window>(args.Holder());
 
         double x = args[0]->IsUndefined() ? 0.0 : args[0]->NumberValue();
@@ -186,9 +148,10 @@ namespace OpenVG
         self->m_Pos.x = (uint32_t)x;
         self->m_Pos.y = (uint32_t)y;
 
-        graphics_display_resource(self->m_Handle, 0, self->m_Layer, 
+        auto status = graphics_display_resource(self->m_Handle, 0, self->m_Layer, 
             self->m_Pos.x, self->m_Pos.y, self->m_Size.x, self->m_Size.y, 
             VC_DISPMAN_ROT0, self->m_IsHidden ? 0 : 1);
+        args.GetReturnValue().Set(Number::New(isolate, (double)status));
     }
 
     void Window::GetPosition(const v8::FunctionCallbackInfo<v8::Value>& args)
@@ -204,6 +167,7 @@ namespace OpenVG
 
     void Window::SetSize(const v8::FunctionCallbackInfo<v8::Value>& args)
     {
+        Isolate* isolate = args.GetIsolate();
         Window* self = ObjectWrap::Unwrap<Window>(args.Holder());
 
         double width = args[0]->IsUndefined() ? 0.0 : args[0]->NumberValue();
@@ -212,9 +176,10 @@ namespace OpenVG
         self->m_Size.x = (uint32_t)width;
         self->m_Size.y = (uint32_t)height;
         
-        graphics_display_resource(self->m_Handle, 0, self->m_Layer, 
+        auto status = graphics_display_resource(self->m_Handle, 0, self->m_Layer, 
             self->m_Pos.x, self->m_Pos.y, self->m_Size.x, self->m_Size.y, 
             VC_DISPMAN_ROT0, self->m_IsHidden ? 0 : 1);
+        args.GetReturnValue().Set(Number::New(isolate, (double)status));
     }
 
     void Window::GetSize(const v8::FunctionCallbackInfo<v8::Value>& args)
@@ -241,22 +206,27 @@ namespace OpenVG
 
     void Window::Show(const v8::FunctionCallbackInfo<v8::Value>& args)
     {
+        Isolate* isolate = args.GetIsolate();
         Window* self = ObjectWrap::Unwrap<Window>(args.Holder());
         self->m_IsHidden = false;
 
-        graphics_display_resource(self->m_Handle, 0, self->m_Layer, 
+        auto status = graphics_display_resource(self->m_Handle, 0, self->m_Layer, 
             self->m_Pos.x, self->m_Pos.y, self->m_Size.x, self->m_Size.y, 
             VC_DISPMAN_ROT0, self->m_IsHidden ? 0 : 1);
+        args.GetReturnValue().Set(Number::New(isolate, (double)status));
     }
 
     void Window::Hide(const v8::FunctionCallbackInfo<v8::Value>& args)
     {
+        Isolate* isolate = args.GetIsolate();
         Window* self = ObjectWrap::Unwrap<Window>(args.Holder());
         self->m_IsHidden = true;
 
-        graphics_display_resource(self->m_Handle, 0, self->m_Layer, 
+        auto status = graphics_display_resource(self->m_Handle, 0, self->m_Layer, 
             self->m_Pos.x, self->m_Pos.y, self->m_Size.x, self->m_Size.y, 
             VC_DISPMAN_ROT0, self->m_IsHidden ? 0 : 1);
+
+        args.GetReturnValue().Set(Number::New(isolate, (double)status));
     }
 
     void Window::IsVisible(const v8::FunctionCallbackInfo<v8::Value>& args)
@@ -268,8 +238,10 @@ namespace OpenVG
 
     void Window::Update(const v8::FunctionCallbackInfo<v8::Value>& args)
     {
+        Isolate* isolate = args.GetIsolate();
         Window* self = ObjectWrap::Unwrap<Window>(args.Holder());
-        graphics_update_displayed_resource(self->m_Handle, 0, 0, 0, 0);
+        auto status = graphics_update_displayed_resource(self->m_Handle, 0, 0, 0, 0);
+        args.GetReturnValue().Set(Number::New(isolate, (double)status));
     }
 
     uint32_t ExtractColor(Isolate* isolate, const v8::Local<v8::Object>& obj)
@@ -303,7 +275,9 @@ namespace OpenVG
             color = ExtractColor(isolate, args[4]->ToObject());
         }
 
-        graphics_resource_fill(self->m_Handle, (uint32_t)x, (uint32_t)y, (uint32_t)width, (uint32_t)height, color);
+        auto status = graphics_resource_fill(self->m_Handle, 
+            (uint32_t)x, (uint32_t)y, (uint32_t)width, (uint32_t)height, color);
+        args.GetReturnValue().Set(Number::New(isolate, (double)status));
     }
 
     void Window::DrawText(const v8::FunctionCallbackInfo<v8::Value>& args)
@@ -334,7 +308,7 @@ namespace OpenVG
             auto str = args[2]->ToString();
             v8::String::Utf8Value text(str);
 
-            graphics_resource_render_text_ext(
+            auto status = graphics_resource_render_text_ext(
                 self->m_Handle, 
                 x,
                 y,
@@ -346,6 +320,10 @@ namespace OpenVG
                 str->Length(),
                 size
             );
+
+           args.GetReturnValue().Set(Number::New(isolate, (double)status));
+        } else {
+           args.GetReturnValue().Set(Number::New(isolate, 1.0));
         }
     }
 
@@ -362,9 +340,98 @@ namespace OpenVG
         uint32_t width = 0, height = 0;
         graphics_resource_text_dimensions_ext(self->m_Handle, *text, str->Length(), &width, &height, (uint32_t)size);
         auto result = Object::New(isolate);
-        result->Set(String::NewFromUtf8(isolate, "width"), Number::New(isolate, (double)self->m_Size.x));
-        result->Set(String::NewFromUtf8(isolate, "height"), Number::New(isolate, (double)self->m_Size.y));
+        result->Set(String::NewFromUtf8(isolate, "width"), Number::New(isolate, (double)width));
+        result->Set(String::NewFromUtf8(isolate, "height"), Number::New(isolate, (double)height));
         args.GetReturnValue().Set(result);
+    }
+
+    void Window::BlitPixels(const v8::FunctionCallbackInfo<v8::Value>& args)
+    {
+        Isolate* isolate = args.GetIsolate();
+        Window* self = ObjectWrap::Unwrap<Window>(args.Holder());
+        
+        auto pixels = node::Buffer::Data(args[0]->ToObject());
+
+        uint32_t srcWidth = args[1]->IsUndefined() ? 0 : args[1]->NumberValue();
+        uint32_t srcHeight = args[2]->IsUndefined() ? 0 : args[2]->NumberValue();        
+
+        uint32_t dstX = args[3]->IsUndefined() ? 0 : args[3]->NumberValue();
+        uint32_t dstY = args[4]->IsUndefined() ? 0 : args[4]->NumberValue();
+        uint32_t dstWidth = args[5]->IsUndefined() ? srcWidth : args[5]->NumberValue();
+        uint32_t dstHeight = args[6]->IsUndefined() ? srcHeight : args[6]->NumberValue();
+
+        auto copy = new char[srcWidth*srcHeight*4];
+
+        for(auto y = 0; y < srcHeight; y++)
+        for(auto x = 0; x < srcWidth; x++)
+        {
+            char r = pixels[(x * 4) + (y * srcWidth * 4) + 0];
+            char g = pixels[(x * 4) + (y * srcWidth * 4) + 1];
+            char b = pixels[(x * 4) + (y * srcWidth * 4) + 2];
+            char a = pixels[(x * 4) + (y * srcWidth * 4) + 3];
+
+            copy[(x * 4) + ((srcHeight - y - 1) * srcWidth * 4) + 0] = a;
+            copy[(x * 4) + ((srcHeight - y - 1) * srcWidth * 4) + 1] = b;
+            copy[(x * 4) + ((srcHeight - y - 1) * srcWidth * 4) + 2] = g;
+            copy[(x * 4) + ((srcHeight - y - 1) * srcWidth * 4) + 3] = r;
+        }
+
+        GX_CLIENT_STATE_T save;
+        gx_priv_save(&save, self->m_Handle);
+
+        vgGetError();
+        vgLoadIdentity();
+        vgWritePixels(copy, srcWidth * 4, VG_sRGBA_8888, dstX, m_ScreenSize.y - dstY - srcHeight, dstWidth, dstHeight);
+
+        delete [] copy;
+
+        auto err = vgGetError();
+        gx_priv_restore(&save);
+        args.GetReturnValue().Set(Number::New(isolate, (double)err));
+    }
+
+    void Window::BlitImage(const v8::FunctionCallbackInfo<v8::Value>& args)
+    {
+        Isolate* isolate = args.GetIsolate();
+        Window* self = ObjectWrap::Unwrap<Window>(args.Holder());
+        
+        uint32_t srcX = args[0]->IsUndefined() ? 0 : args[0]->NumberValue();
+        uint32_t srcY = args[1]->IsUndefined() ? 0 : args[1]->NumberValue();        
+        uint32_t dstX = args[2]->IsUndefined() ? 0 : args[2]->NumberValue();
+        uint32_t dstY = args[3]->IsUndefined() ? 0 : args[3]->NumberValue();
+
+        Image* img = ObjectWrap::Unwrap<Image>(args[4]->ToObject());
+
+        auto status = graphics_bitblt(img->m_Handle, srcX, srcY, img->m_Size.x, img->m_Size.y, m_Handle, dstX, dstY);
+
+        args.GetReturnValue().Set(Number::New(isolate, (double)status));
+    }
+
+    void Window::DrawImage(const v8::FunctionCallbackInfo<v8::Value>& args)
+    {
+        Isolate* isolate = args.GetIsolate();
+        Window* self = ObjectWrap::Unwrap<Window>(args.Holder());
+        
+        Image* img = ObjectWrap::Unwrap<Image>(args[4]->ToObject());
+        auto& size = img->m_Size;
+
+        uint32_t dstX = args[0]->IsUndefined() ? 0 : args[0]->NumberValue();
+        uint32_t dstY = args[1]->IsUndefined() ? 0 : args[1]->NumberValue();
+        uint32_t dstWidth = args[2]->IsUndefined() ? size.x : args[2]->NumberValue();
+        uint32_t dstHeight = args[3]->IsUndefined() ? size.y : args[3]->NumberValue();
+
+        GX_CLIENT_STATE_T save;
+        gx_priv_save(&save, self->m_Handle);
+
+        vgGetError();
+        vgLoadIdentity();
+        vgScale((float)dstWidth / (float)size.x, (float)dstHeight / (float)size.y);
+        vgTranslate(dstX, dstY);
+        vgDrawImage(img->m_Handle);
+
+        auto err = vgGetError();
+        gx_priv_restore(&save);
+        args.GetReturnValue().Set(Number::New(isolate, (double)err));
     }
 
 }

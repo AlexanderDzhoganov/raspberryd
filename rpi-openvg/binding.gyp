@@ -2,7 +2,7 @@
   "targets": [
     {
       "target_name": "openvg",
-      "sources": [ "openvg.cpp", "font.cpp", "graphics.cpp", "vgft.cpp", "window.cpp" ],
+      "sources": [ "openvg.cpp", "font.cpp", "graphics.cpp", "vgft.cpp", "window.cpp", "image.cpp" ],
       "include_dirs": [
         "/opt/vc/include/", "/opt/vc/include/interface/vcos/pthreads", "/opt/vc/include/interface/vmcs_host/linux",
         "/usr/include/freetype2", "./"

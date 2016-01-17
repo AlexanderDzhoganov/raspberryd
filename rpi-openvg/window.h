@@ -11,7 +11,6 @@ namespace OpenVG
         public:
         static void Init(v8::Local<v8::Object> exports);
 
-        private:
         explicit Window(const Vector2ui& pos, const Vector2ui& size, unsigned int layer);
         ~Window();
 
@@ -35,9 +34,12 @@ namespace OpenVG
         static void DrawText(const v8::FunctionCallbackInfo<v8::Value>& args);
         static void MeasureText(const v8::FunctionCallbackInfo<v8::Value>& args);
 
+        static void BlitPixels(const v8::FunctionCallbackInfo<v8::Value>& args);
+        static void BlitImage(const v8::FunctionCallbackInfo<v8::Value>& args);
+        static void DrawImage(const v8::FunctionCallbackInfo<v8::Value>& args);
+
         static v8::Persistent<v8::Function> constructor;
 
-        private:
         static void InitializeGx();
 
         Vector2ui m_Pos;

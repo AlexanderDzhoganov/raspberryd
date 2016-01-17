@@ -26,6 +26,7 @@ module.exports = function(channel, cb) {
     });
 
     this.destroy = function() {
+        this.client.disconnect();
         this.client = null;
     }
 };

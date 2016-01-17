@@ -31,7 +31,19 @@ module.exports = function(title, options, selected, cb) {
         this.btnCallback = null;
     };
 
-    var width = 256;
+    var longestEntry = '';
+    var longestLength = 0;
+
+    _.each(options, function(opt) {
+        if(opt.length > longestLength) {
+            longestLength = opt.length;
+            longestEntry = opt;
+        }
+    });
+
+    var entrySize = this.lblWnd.measureText(longestEntry, 32);
+
+    var width = entrySize.x * 0.8 + 128;
     var height = 64 + options.length * 42 + 4;
     var x = (gui.screenSize.x - width) / 2;
     var y = (gui.screenSize.y - height) / 2;
@@ -77,21 +89,21 @@ module.exports = function(title, options, selected, cb) {
     };
 
     this.btnCallback = function(btn) {
-        if(btn == 'KEY_2') {
+        if(btn == 'KEY_UP') {
             selectedIndex--;
             if(selectedIndex < 0) {
                 selectedIndex = options.length - 1;
             }
 
             this.drawWindow();
-        } else if(btn == 'KEY_8') {
+        } else if(btn == 'KEY_DOWN') {
             selectedIndex++;
             if(selectedIndex >= options.length) {
                 selectedIndex = 0;
             }
 
             this.drawWindow();
-        } else if(btn == 'KEY_5') {
+        } else if(btn == 'KEY_ENTER') {
             cb(null, options[selectedIndex]);
             this.destroy();
         }

@@ -7,6 +7,7 @@ var util = require('./util');
 var fifo = require('./fifo');
 var remote = require('./remote');
 var gui = require('./gui');
+var brain = require('./brain');
 
 var twitchAPI = require('./twitch-api');
 var twitchChatWidget = require('./twitch-chat-widget');
@@ -28,6 +29,7 @@ function setBackgroundImage(image) {
 }
 
 var qualityWidget = null;
+var favoritesWidget = null;
 var qualityOpts = ['source', 'high', 'medium', 'low', 'mobile', 'audio'];
 
 function openUri(uri, quality) {
@@ -37,11 +39,8 @@ function openUri(uri, quality) {
         channelInfo = info;
         console.log('Channel info: ' + JSON.stringify(channelInfo));
 
-        if(currentChat) {
-            currentChat.destroy();
-        }
-
-        currentChat = twitchChatWidget(channelInfo.name, 0, gui.screenSize.y - 40, gui.screenSize.x, 40, 32);
+        currentChat = new twitchChatWidget(channelInfo.name, 0, gui.screenSize.y - 40, 
+            gui.screenSize.x, 40, 26, gui.colors.black);
 
         if(channelInfo.video_banner) {
             return gui.createImageFromUrl(channelInfo.video_banner);
@@ -115,6 +114,11 @@ function closeUri() {
         child_process.exec('killall -9 livestreamer');
     }
 
+    if(currentChat) {
+        currentChat.destroy();
+        currentChat = null;
+    }
+
     omxplayer.stop();
 
     currentUri = null;
@@ -129,7 +133,7 @@ function closeUri() {
     });
 };
 
-remote.onButtonPressed('KEY_CHANNEL', function() {
+remote.onButtonPressed('KEY_INFO', function() {
     if(currentUri) {
         var str = currentUri + ' [' + currentQuality + ']' +
             '\n' + channelInfo.status;
@@ -144,11 +148,16 @@ remote.onButtonPressed('KEY_CHANNEL', function() {
     }
 }, 1000);
 
-remote.onButtonPressed('KEY_EQUAL', function() {
+remote.onButtonPressed('KEY_MENU', function() {
     if(qualityWidget) {
         qualityWidget.destroy();
         qualityWidget = null;
         return;
+    }
+
+    if(favoritesWidget) {
+        favoritesWidget.destroy();
+        favoritesWidget = null;
     }
 
     if(!qualityOpts) {
@@ -175,5 +184,50 @@ remote.onButtonPressed('KEY_EQUAL', function() {
         });
     });
 }, 500);
+
+remote.onButtonPressed('KEY_DVD', function() {
+    if(favoritesWidget) {
+        favoritesWidget.destroy();
+        favoritesWidget = null;
+        return;
+    }
+
+    if(qualityWidget) {
+        qualityWidget.destroy();
+        qualityWidget = null;
+    }
+
+    var popup = new gui.widgets.popup('Loading favorites..');
+    brain.recall('favorites').then(function(favorites) {
+        popup.destroy();
+
+        favoritesWidget = new gui.widgets.select('Favorites:', JSON.parse(favorites), null, function(err, uri) {
+            if(err) {
+                console.error(err);
+                return;
+            }
+
+            closeUri().then(function() {
+                openUri(uri);
+            });
+        });
+    }).catch(function(err) {
+        popup.destroy();
+        new gui.widgets.popup(err, 4);
+        console.error(err);
+    });
+}, 500);
+
+remote.onButtonPressed('KEY_ESC', function() {
+    if(favoritesWidget) {
+        favoritesWidget.destroy();
+        favoritesWidget = null;
+    }
+
+    if(qualityWidget) {
+        qualityWidget.destroy();
+        qualityWidget = null;
+    }
+});
 
 urlHandler.registerHandler('twitch.tv', openUri, closeUri);

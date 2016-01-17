@@ -60,6 +60,12 @@ process.on('SIGHUP', onExit);
 process.on('SIGTERM', onExit);
 process.on('SIGINT', onExit);
 
+process.on('uncaughtException', (err) => {
+    console.error(err.toString());
+    console.error(err.stack);
+    onExit();
+});
+
 exports.createWindow = function(x, y, width, height, layer) {
     var wnd = new openvg.Window(x, y, width, height, layer);
     windows.push(wnd);

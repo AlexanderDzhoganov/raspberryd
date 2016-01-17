@@ -3,12 +3,18 @@ var _ = require('lodash');
 var gui = require('./gui');
 
 module.exports = function(text, timeout, opts) {
-    this.wnd = gui.createWindow(0, 0, gui.screenSize.x, gui.screenSize.y, 1000);
+    var layer = 1000;
+    this.bgWnd = gui.createWindow(0, 0, gui.screenSize.x, gui.screenSize.y, layer);
 
     this.destroy = function() {
-        if(this.wnd) {
-            this.wnd.destroy();
-            this.wnd = null;
+        if(this.bgWnd) {
+            this.bgWnd.destroy();
+            this.bgWnd = null;
+        }
+
+        if(this.lblWnd) {
+            this.lblWnd.destroy();
+            this.lblWnd = null;
         }
     };
 
@@ -21,16 +27,11 @@ module.exports = function(text, timeout, opts) {
         fontSize = opts.fontSize;
     }
 
-    var textSize = this.wnd.measureText(text, fontSize);
+    var textSize = this.bgWnd.measureText(text, fontSize);
 
     var padding = 48;
     if(opts.padding) {
         padding = opts.padding;
-    }
-
-    var border = 2;
-    if(opts.border) {
-        border = opts.border;
     }
 
     var bgColor = gui.colors.gray;
@@ -38,61 +39,39 @@ module.exports = function(text, timeout, opts) {
         bgColor = opts.bgColor;
     }
 
-    var borderColor = gui.colors.lightgray;
-    if(opts.borderColor) {
-        borderColor = opts.borderColor;
-    }
-
     var textColor = gui.colors.white;
     if(opts.textColor) {
         textColor = opts.textColor;
     }
 
-    var width = textSize.x + padding * 2 + border * 2;
-    var height = textSize.y + padding + border * 2;
+    var width = textSize.x + padding * 2;
+    var height = textSize.y + padding;
 
     var x = (gui.screenSize.x - width) / 2;
     var y = (gui.screenSize.y - height) / 2;
 
-    this.wnd.alpha = 1.0;
+    this.lblWnd = gui.createWindow(x + (width - textSize.x) / 2, y + (height - textSize.y) / 2 + 4,
+        textSize.x, textSize.y, layer+1);
 
     this.drawWindow = function() {
-        this.wnd.fill(x, y, width, height, borderColor.set('a', this.wnd.alpha));
-        this.wnd.fill(x + border, y + border, width - border * 2, height - border * 2, bgColor.set('a', this.wnd.alpha));
+        this.bgWnd.fillGradient(x, y, width, height, 
+            gui.colors.black, bgColor, x, y, x, y + height, 12.0);
 
-        this.wnd.drawText(x + (width - textSize.x) / 2, y + (height - textSize.y) / 2, text, 
-            fontSize, textColor.set('a', this.wnd.alpha), bgColor.set('a', this.wnd.alpha));
+        this.lblWnd.drawText(0, 0, text, fontSize, textColor, gui.colors.transparent);
 
         if(opts.onDraw) {
-            opts.onDraw(this.wnd);
+            opts.onDraw(this.bgWnd);
         }
 
-        this.wnd.update();
-    }
-
-    var fadingOut = false;
-    this.fadeOut = function() {
-        if(!fadingOut) {
-            fadingOut = true;
-        } else {
-            return;
-        }
-
-        var interval = setInterval(function() {
-            this.drawWindow();
-            this.wnd.alpha -= 0.05;
-            if(this.wnd.alpha <= 0.0) {
-                clearInterval(interval);
-                this.wnd.hide();
-            }
-        }.bind(this), 16);
-    }
+        this.bgWnd.update();
+        this.lblWnd.update();
+    };
 
     this.drawWindow();
 
     if(timeout) {
         setTimeout(function() {
-            this.fadeOut();
+            this.destroy();
         }.bind(this), timeout * 1000);
     }
 };

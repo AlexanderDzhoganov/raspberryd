@@ -12,32 +12,15 @@ var remote = require('./remote');
 var gui = require('./gui');
 
 var bgWindow = gui.createWindow(0, 0, gui.screenSize.x, gui.screenSize.y, 1);
+
 gui.createImageFromFile('raspberry.jpg').then(function(bgImage) {
-    bgWindow.drawImage(0, 0, gui.screenSize.x, gui.screenSize.y, bgImage);
+    bgWindow.drawImage(bgImage);
     bgWindow.update();
 });
-
-var clock = require('./clock-widget');
 
 var urlHandler = require('./url-handler');
 var twitchHandler = require('./twitch-handler');
 var youtubeHandler = require('./youtube-handler');
-
-brain.recall('favorites').then(function(favorites) {
-    if(!favorites) {
-        brain.remember('favorites', JSON.stringify(['', '', '', '', '', '', '', '', '']));
-    }
-}).catch(function(err) {
-    console.error('Error loading favorites: ' + JSON.stringify(err, null, 4));
-});
-
-brain.recall('lastUrl').then(function(lastUrl) {
-    if(lastUrl) {
-        urlHandler.callHandler(lastUrl);
-    }
-}).catch(function(err) {
-    console.error(err);
-});
 
 app.get('*', function (req, res) {
     var path = req.path;
@@ -94,7 +77,10 @@ function handlePostRequest(req, res) {
 app.post('/play_url', function(req, res) {
     handlePostRequest(req, res).then(function(body) {
         if(body.url) {
-            urlHandler.callHandler(body.url);
+            bgWindow.show();
+            urlHandler.callHandler(body.url).then(function() {
+                bgWindow.hide();
+            });
             new gui.widgets.popup('Switching to "' + body.url + '"', 5);
             brain.remember('lastUrl', body.url);
         }
@@ -123,4 +109,25 @@ app.post('/save_favorites', function(req, res) {
 
 app.listen(3000, function () {
     console.log('Raspberryd listening on port 3000!');
+
+    var clock = require('./clock-widget');
+
+    brain.recall('favorites').then(function(favorites) {
+        if(!favorites) {
+            brain.remember('favorites', JSON.stringify(['', '', '', '', '', '', '', '', '']));
+        }
+    }).catch(function(err) {
+        console.error('Error loading favorites: ' + JSON.stringify(err, null, 4));
+    });
+
+    brain.recall('lastUrl').then(function(lastUrl) {
+        if(lastUrl) {
+            bgWindow.show();
+            urlHandler.callHandler(lastUrl).then(function() {
+                bgWindow.hide();
+            });
+        }
+    }).catch(function(err) {
+        console.error(err);
+    });
 });

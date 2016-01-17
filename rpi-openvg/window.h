@@ -31,6 +31,7 @@ namespace OpenVG
         static void Update(const v8::FunctionCallbackInfo<v8::Value>& args);
 
         static void Fill(const v8::FunctionCallbackInfo<v8::Value>& args);
+        static void FillGradient(const v8::FunctionCallbackInfo<v8::Value>& args);
 
         static void DrawText(const v8::FunctionCallbackInfo<v8::Value>& args);
         static void MeasureText(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -47,6 +48,7 @@ namespace OpenVG
         Vector2ui m_Size;
         unsigned int m_Layer = 10;
         bool m_IsHidden = false;
+        float m_Alpha = 1.0f;
 
         GRAPHICS_RESOURCE_HANDLE m_Handle;
 

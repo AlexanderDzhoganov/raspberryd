@@ -1,6 +1,6 @@
 var gui = require('./gui');
 
-var wnd = gui.createWindow(gui.screenSize.x - 200, 4, 200, 32, 10);
+var wnd = gui.createWindow(gui.screenSize.x - 200, 4, 200, 32, 25);
 
 function draw() {
     var date = new Date();

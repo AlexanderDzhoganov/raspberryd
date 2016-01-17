@@ -1,5 +1,11 @@
 var request = require('request');
 var _ = require('lodash');
+var child_process = require('child_process');
+
+try {
+    child_process.execSync('sudo lircd');
+    console.log('Spawned lircd..');
+} catch(err) {}
 
 var lirc_node = require('lirc_node');
 

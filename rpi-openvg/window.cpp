@@ -15,14 +15,78 @@
 void gx_priv_save(GX_CLIENT_STATE_T *state, GRAPHICS_RESOURCE_HANDLE res);
 void gx_priv_restore(GX_CLIENT_STATE_T *state);
 
-int32_t graphics_bitblt( const GRAPHICS_RESOURCE_HANDLE src,
-                         const uint32_t x, // offset within source
-                         const uint32_t y, // offset within source
-                         const uint32_t width,
-                         const uint32_t height,
-                         GRAPHICS_RESOURCE_HANDLE dest,
-                         const uint32_t x_pos,
-                         const uint32_t y_pos );
+int32_t gx_apply_alpha( GRAPHICS_RESOURCE_HANDLE resource_handle,
+                        const uint8_t alpha );
+
+int32_t graphics_bitblt
+(
+    const GRAPHICS_RESOURCE_HANDLE src,
+    const uint32_t x, // offset within source
+    const uint32_t y, // offset within source
+    const uint32_t width,
+    const uint32_t height,
+    GRAPHICS_RESOURCE_HANDLE dest,
+    const uint32_t x_pos,
+    const uint32_t y_pos
+);
+
+GX_PAINT_T *gx_create_gradient
+(
+    GRAPHICS_RESOURCE_HANDLE res,
+    uint32_t start_colour,
+    uint32_t end_colour
+);
+
+void gx_destroy_paint(GRAPHICS_RESOURCE_HANDLE res, GX_PAINT_T *p);
+
+VCOS_STATUS_T gx_fill_gradient_override(GRAPHICS_RESOURCE_HANDLE dest,
+                               uint32_t x, uint32_t y,
+                               uint32_t width, uint32_t height,
+                               uint32_t radius, float x0, float y0, float x1, float y1,
+                               GX_PAINT_T *p)
+{
+   /* Define start and end points of gradient, see OpenVG specification, 
+      section 9.3.3. */
+   VGfloat gradient[4] = {x0, y0, x1, y1};
+   VGPaint paint = (VGPaint)p;
+   VGPath path;
+   GX_CLIENT_STATE_T save;
+   VCOS_STATUS_T status = VCOS_SUCCESS;
+
+   if (!paint)
+      return VCOS_EINVAL;
+
+   gx_priv_save(&save, dest);
+
+   if (width == GRAPHICS_RESOURCE_WIDTH)
+      width = dest->width;
+
+   if (height == GRAPHICS_RESOURCE_HEIGHT)
+      height = dest->height;
+
+   vgSetParameterfv(paint, VG_PAINT_LINEAR_GRADIENT, 4, gradient);
+   vgSetPaint(paint, VG_FILL_PATH);
+
+   path = vgCreatePath(VG_PATH_FORMAT_STANDARD, VG_PATH_DATATYPE_S_32,
+                       1.0, 0.0, 8, 8, VG_PATH_CAPABILITY_ALL);
+   if (!path)
+   {
+      status = VCOS_ENOMEM;
+      goto finish;
+   }
+
+   vguRoundRect(path, (VGfloat)x, (VGfloat)y, (VGfloat)width, (VGfloat)height,
+                (VGfloat)radius, (VGfloat)radius);
+   vgDrawPath(path, VG_FILL_PATH);
+   vgDestroyPath(path);
+
+   vcos_assert(vgGetError() == 0);
+   
+    finish:
+   gx_priv_restore(&save);
+
+   return status;
+}
 
 namespace OpenVG
 {
@@ -93,6 +157,7 @@ namespace OpenVG
         NODE_SET_PROTOTYPE_METHOD(tpl, "isVisible", IsVisible);
         NODE_SET_PROTOTYPE_METHOD(tpl, "update", Update);
         NODE_SET_PROTOTYPE_METHOD(tpl, "fill", Fill);
+        NODE_SET_PROTOTYPE_METHOD(tpl, "fillGradient", FillGradient);
         NODE_SET_PROTOTYPE_METHOD(tpl, "drawText", DrawText);
         NODE_SET_PROTOTYPE_METHOD(tpl, "measureText", MeasureText);
         NODE_SET_PROTOTYPE_METHOD(tpl, "blitPixels", BlitPixels);
@@ -337,6 +402,49 @@ namespace OpenVG
         args.GetReturnValue().Set(Number::New(isolate, (double)status));
     }
 
+    void Window::FillGradient(const v8::FunctionCallbackInfo<v8::Value>& args)
+    {
+        Isolate* isolate = args.GetIsolate();
+        Window* self = ObjectWrap::Unwrap<Window>(args.Holder());
+
+        if(self->m_Handle == nullptr) {
+            isolate->ThrowException(Exception::TypeError(
+                    String::NewFromUtf8(isolate, "Window used after being destroyed")));
+        }
+
+        double x = args[0]->IsUndefined() ? 0 : args[0]->NumberValue();
+        double y = args[1]->IsUndefined() ? 0 : args[1]->NumberValue();
+        double width = args[2]->IsUndefined() ? (double)m_ScreenSize.x : args[2]->NumberValue();
+        double height = args[3]->IsUndefined() ? (double)m_ScreenSize.y : args[3]->NumberValue();
+
+        auto startColor = GRAPHICS_RGBA32(0xFF, 0, 0xFF, 0xFF);
+        if(!args[4]->IsUndefined())
+        {  
+            startColor = ExtractColor(isolate, args[4]->ToObject());
+        }
+
+        auto endColor = GRAPHICS_RGBA32(0xFF, 0xFF, 0xFF, 0xFF);
+        if(!args[5]->IsUndefined())
+        {  
+            endColor = ExtractColor(isolate, args[5]->ToObject());
+        }
+
+        auto gradient = gx_create_gradient(self->m_Handle, startColor, endColor);
+
+        double x0 = args[6]->IsUndefined() ? 0 : args[6]->NumberValue();
+        double y0 = args[7]->IsUndefined() ? 0 : args[7]->NumberValue();
+        double x1 = args[8]->IsUndefined() ? 0 : args[8]->NumberValue();
+        double y1 = args[9]->IsUndefined() ? 0 : args[9]->NumberValue();
+
+        double radius = args[10]->IsUndefined() ? 0.0 : args[10]->NumberValue();
+
+        auto status = gx_fill_gradient_override(self->m_Handle, (uint32_t)x, (uint32_t)y, 
+            (uint32_t)width, (uint32_t)height, (uint32_t)radius, x0, y0, x1, y1, gradient);
+
+        gx_destroy_paint(self->m_Handle, gradient);
+        args.GetReturnValue().Set(Number::New(isolate, (double)status));
+    }
+
     void Window::DrawText(const v8::FunctionCallbackInfo<v8::Value>& args)
     {
         Isolate* isolate = args.GetIsolate();
@@ -494,13 +602,13 @@ namespace OpenVG
                     String::NewFromUtf8(isolate, "Window used after being destroyed")));
         }
         
-        Image* img = ObjectWrap::Unwrap<Image>(args[4]->ToObject());
+        Image* img = ObjectWrap::Unwrap<Image>(args[0]->ToObject());
         auto& size = img->m_Size;
 
-        uint32_t dstX = args[0]->IsUndefined() ? 0 : args[0]->NumberValue();
-        uint32_t dstY = args[1]->IsUndefined() ? 0 : args[1]->NumberValue();
-        uint32_t dstWidth = args[2]->IsUndefined() ? size.x : args[2]->NumberValue();
-        uint32_t dstHeight = args[3]->IsUndefined() ? size.y : args[3]->NumberValue();
+        uint32_t dstX = args[1]->IsUndefined() ? 0 : args[1]->NumberValue();
+        uint32_t dstY = args[2]->IsUndefined() ? 0 : args[2]->NumberValue();
+        uint32_t dstWidth = args[3]->IsUndefined() ? self->m_Size.x : args[3]->NumberValue();
+        uint32_t dstHeight = args[4]->IsUndefined() ? self->m_Size.y : args[4]->NumberValue();
 
         GX_CLIENT_STATE_T save;
         gx_priv_save(&save, self->m_Handle);
@@ -508,7 +616,7 @@ namespace OpenVG
         vgGetError();
         vgSeti(VG_MATRIX_MODE, VG_MATRIX_IMAGE_USER_TO_SURFACE);
         vgLoadIdentity();
-        vgTranslate(0.0f, m_ScreenSize.y);
+        vgTranslate(0.0f, self->m_Size.y);
         vgScale(1.0f, -1.0f);
 
         vgScale((float)dstWidth / (float)size.x, (float)dstHeight / (float)size.y);

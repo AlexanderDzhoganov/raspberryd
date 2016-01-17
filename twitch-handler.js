@@ -17,9 +17,9 @@ var channelInfo = null;
 var channelBgImage = null;
 var channelLogo = null;
 
-var backgroundWnd = gui.createWindow(0, 0, gui.screenSize.x, gui.screenSize.y, 15);
+var backgroundWnd = gui.createWindow((gui.screenSize.x - 1280) / 2, (gui.screenSize.y - 720) / 2, 1280, 720, 15);
 function setBackgroundImage(image) {
-    backgroundWnd.drawImage(0, 0, gui.screenSize.x, gui.screenSize.y, image);
+    backgroundWnd.drawImage(image);
     backgroundWnd.update();
 }
 
@@ -47,7 +47,7 @@ function openUri(uri, quality) {
         if(channelInfo.logo) {
             return gui.createImageFromUrl(channelInfo.logo);
         }
-        
+
         return null;
     }).then(function(logo) {
         channelLogo = logo;
@@ -127,7 +127,7 @@ remote.onButtonPressed('KEY_CHANNEL', function() {
             onDraw: function(wnd) {
                 if(channelLogo) {
                     var size = { x: 300, y: 300 };
-                    wnd.drawImage((gui.screenSize.x - size.x) / 2, gui.screenSize.y - size.y - 16, size.x, size.y, channelLogo);
+                    wnd.drawImage(channelLogo, (gui.screenSize.x - size.x) / 2, gui.screenSize.y - size.y - 16, size.x, size.y);
                 }
             }
         });

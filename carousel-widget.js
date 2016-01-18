@@ -70,9 +70,9 @@ module.exports = function(items, cb, loadedCb) {
         if(index === selectedIndex) {
             return center - scaleFromIndex(index) * imgWidth * 0.5;
         } else if(selectedIndex < index) {
-            return xPosFromIndex(index - 1) + scaleFromIndex(index - 1) * imgWidth * 0.75 + 16;
+            return xPosFromIndex(index - 1) + scaleFromIndex(index) * imgWidth * 1.25;
         } else {
-            return xPosFromIndex(index + 1) - scaleFromIndex(index - 1) * imgWidth * 0.75 - 16;
+            return xPosFromIndex(index + 1) - scaleFromIndex(index) * imgWidth * 0.75;
         }
     }
 
@@ -109,7 +109,7 @@ module.exports = function(items, cb, loadedCb) {
             var fontSize = fontSizeFromIndex(i);
             var textSize = this.wnd.measureText(item.title, fontSize);
             this.wnd.drawText(x + width * 0.5 - textSize.x * 0.5, (gui.screenSize.y - height) / 2 - textSize.y - 4, 
-                item.title, fontSize, gui.colors.white, gui.colors.transparent);
+                item.title, fontSize, gui.colors.white, gui.colors.white.set('a', 0.25));
         }
     };
 
@@ -124,7 +124,7 @@ module.exports = function(items, cb, loadedCb) {
             this.renderItem(i);
         }
 
-        for(var i = Math.min(this.items.length - 1, selectedIndex + 3); i > selectedIndex; i--) {
+        for(var i = Math.min(this.items.length - 1, selectedIndex + 4); i > selectedIndex; i--) {
             this.renderItem(i);
         }
 

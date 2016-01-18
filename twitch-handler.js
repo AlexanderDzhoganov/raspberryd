@@ -25,6 +25,8 @@ var currentChat = null;
 
 var backgroundWnd = gui.createWindow((gui.screenSize.x - 1280) / 2, (gui.screenSize.y - 720) / 2, 1280, 720, 15);
 function setBackgroundImage(image) {
+    global.hideBackground();
+    backgroundWnd.show();
     backgroundWnd.drawImage(image);
     backgroundWnd.update();
 }
@@ -86,10 +88,14 @@ function openUri(uri, quality) {
         });
 
         livestreamer.on('error', function(err) {
+            backgroundWnd.hide();
+            global.showBackground();
             console.error('Livestreamer error: ' + err.toString());
         });
 
         livestreamer.on('exit', function(code, signal) {
+            backgroundWnd.hide();
+            global.showBackground();
             console.log('Livestreamer terminated, code: ' + code + ', signal: ' + signal);
         });
 
@@ -250,7 +256,8 @@ function showStreamsCarousel(game) {
         streamsWidget = new gui.widgets.carousel(_.map(streams, function(stream) {
             return {
                 url: stream.channel.url,
-                imageUrl: stream.preview.medium,
+                imageUrl: stream.preview.small,
+                imageUrlHiRes: stream.preview.medium,
                 title: stream.channel.display_name
             };
         }), function(err, stream) {
@@ -279,7 +286,8 @@ remote.onButtonPressed('KEY_F1', function() {
     twitchAPI.getGames(20, 0).then(function(games) {
         streamsWidget = new gui.widgets.carousel(_.map(games.top, function(info) {
             return {
-                imageUrl: info.game.box.large,
+                imageUrl: info.game.box.small,
+                imageUrlHiRes: info.game.box.large,
                 title: info.game.name
             };
         }), function(err, game) {

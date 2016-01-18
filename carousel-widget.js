@@ -8,6 +8,21 @@ module.exports = function(items, cb, loadedCb) {
     this.items = items;
 
     var selectedIndex = 0;
+    var prevIndex = 0;
+    var animDelta = 0.0;
+
+    this.doAnim = function() {
+        this.drawWindow();
+
+        setTimeout(function() {
+            animDelta += 0.15;
+            if(animDelta < 1.0) {
+                this.doAnim();
+            } else {
+                animDelta = 1.0;
+            }
+        }.bind(this), 16);
+    }
 
     remote.onAnyButtonPressed(function(btn) {
         if(!this.wnd) {
@@ -15,11 +30,15 @@ module.exports = function(items, cb, loadedCb) {
         }
 
         if(btn === 'KEY_LEFT' && selectedIndex > 0) {
+            prevIndex = selectedIndex;
+            animDelta = 0.0;
             selectedIndex--;
-            this.drawWindow();
+            this.doAnim();
         } else if(btn === 'KEY_RIGHT' && selectedIndex < this.items.length - 1) {
+            prevIndex = selectedIndex;
+            animDelta = 0.0;
             selectedIndex++;
-            this.drawWindow();
+            this.doAnim();
         } else if(btn === 'KEY_ENTER') {
             cb(null, items[selectedIndex]);
             this.destroy();
@@ -31,7 +50,6 @@ module.exports = function(items, cb, loadedCb) {
         return Promise.all(_.map(this.items, function(item) {
             console.log('loading: ' + item.imageUrl);
             return gui.createImageFromUrl(item.imageUrl).then(function(image) {
-
                 console.log('loaded: ' + item.imageUrl);
                 item.imageHandle = image;
                 return Promise.resolve();
@@ -43,7 +61,7 @@ module.exports = function(items, cb, loadedCb) {
         }));
     };
 
-    var imgWidth = 272;
+    var imgWidth = 364;
 
     this.interval = null;
     this.loadResources().then(function() {
@@ -64,6 +82,11 @@ module.exports = function(items, cb, loadedCb) {
         }
     }
 
+    function scaleFromIndexAnim(index) {
+        var diff = selectedIndex - prevIndex;
+        return scaleFromIndex(index + diff) * (1.0 - animDelta) + scaleFromIndex(index) * animDelta;
+    }
+
     function xPosFromIndex(index) {
         var center = gui.screenSize.x / 2;
 
@@ -76,6 +99,11 @@ module.exports = function(items, cb, loadedCb) {
         }
     }
 
+    function xPosFromIndexAnim(index) {
+        var diff = selectedIndex - prevIndex;
+        return xPosFromIndex(index + diff) * (1.0 - animDelta) + xPosFromIndex(index) * animDelta;
+    }
+
     function fontSizeFromIndex(index) {
         if(index === selectedIndex) {
             return 38;
@@ -86,12 +114,17 @@ module.exports = function(items, cb, loadedCb) {
         }
     }
 
+    function fontSizeFromIndexAnim(index) {
+        var diff = selectedIndex - prevIndex;
+        return fontSizeFromIndex(index + diff) * (1.0 - animDelta) + fontSizeFromIndex(index) * animDelta;
+    }
+
     var imgHeight = 380;
 
     this.renderItem = function(i) {
         var item = this.items[i];
-        var x = xPosFromIndex(i);
-        var scale = scaleFromIndex(i);
+        var x = xPosFromIndexAnim(i);
+        var scale = scaleFromIndexAnim(i);
         var width = imgWidth * scale;
         var height = imgHeight * scale; 
         
@@ -101,7 +134,21 @@ module.exports = function(items, cb, loadedCb) {
                 var aspect = imageSize.x / imageSize.y;
                 height = width / aspect;
 
-                this.wnd.drawImage(item.imageHandle, x, (gui.screenSize.y - height) / 2, width, height);
+                var handle = item.imageHandle;
+                if(item.imageHandleHiRes) {
+                    handle = item.imageHandleHiRes;
+                }
+                this.wnd.drawImage(handle, x, (gui.screenSize.y - height) / 2, width, height);
+
+                if(!item.imageHandleHiRes && item.imageUrlHiRes && !item.imageHighResLoading) {
+                    item.imageHighResLoading = true;
+                    console.log('loading high res: ' + item.imageUrlHiRes);
+                    gui.createImageFromUrl(item.imageUrlHiRes).then(function(image) {
+                    console.log('loaded high res: ' + item.imageUrlHiRes);
+                        item.imageHandleHiRes = image;
+                        this.drawWindow();
+                    }.bind(this));
+                }
             } else {
                 this.wnd.fill(x, (gui.screenSize.y - height) / 2, width, height, gui.colors.magenta);
             }
@@ -109,7 +156,7 @@ module.exports = function(items, cb, loadedCb) {
             var fontSize = fontSizeFromIndex(i);
             var textSize = this.wnd.measureText(item.title, fontSize);
             this.wnd.drawText(x + width * 0.5 - textSize.x * 0.5, (gui.screenSize.y - height) / 2 - textSize.y - 4, 
-                item.title, fontSize, gui.colors.white, gui.colors.white.set('a', 0.25));
+                item.title, fontSize, gui.colors.white, gui.colors.gray.set('a', 0.5));
         }
     };
 
@@ -118,13 +165,13 @@ module.exports = function(items, cb, loadedCb) {
             return;
         }
 
-        this.wnd.fill(0, 0, gui.screenSize.x, gui.screenSize.y, gui.colors.white.set('a', 0.25));
+        this.wnd.fill(0, 0, gui.screenSize.x, gui.screenSize.y, gui.colors.gray.set('a', 0.5));
 
-        for(var i = Math.max(0, selectedIndex - 3); i < selectedIndex; i++) {
+        for(var i = Math.max(0, selectedIndex - 2); i < selectedIndex; i++) {
             this.renderItem(i);
         }
 
-        for(var i = Math.min(this.items.length - 1, selectedIndex + 4); i > selectedIndex; i--) {
+        for(var i = Math.min(this.items.length - 1, selectedIndex + 2); i > selectedIndex; i--) {
             this.renderItem(i);
         }
 
@@ -141,6 +188,10 @@ module.exports = function(items, cb, loadedCb) {
         _.each(this.items, function(item) {
             if(item.imageHandle) {
                 item.imageHandle.destroy();
+            }
+
+            if(item.imageHandleHiRes) {
+                item.imageHandleHiRes.destroy();
             }
         });
     };

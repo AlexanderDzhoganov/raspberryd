@@ -18,6 +18,14 @@ gui.createImageFromFile('raspberry.jpg').then(function(bgImage) {
     bgWindow.update();
 });
 
+global.showBackground = function() {
+    bgWindow.show();
+};
+
+global.hideBackground = function() {
+    bgWindow.hide();
+};
+
 var urlHandler = require('./url-handler');
 var twitchHandler = require('./twitch-handler');
 var youtubeHandler = require('./youtube-handler');

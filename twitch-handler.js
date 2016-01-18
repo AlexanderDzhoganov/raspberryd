@@ -122,6 +122,11 @@ function closeUri() {
         currentChat = null;
     }
 
+    if(streamsWidget) {
+        streamsWidget.destroy();
+        streamsWidget = null;
+    }
+
     omxplayer.stop();
 
     currentUri = null;
@@ -231,7 +236,37 @@ remote.onButtonPressed('KEY_ESC', function() {
         qualityWidget.destroy();
         qualityWidget = null;
     }
+
+    if(streamsWidget) {
+        streamsWidget.destroy();
+        streamsWidget = null;
+    }
 }, 500);
+
+function showStreamsCarousel(game) {
+    var popup = new gui.widgets.popup('Loading info..');
+
+    twitchAPI.getStreamsForGame(game).then(function(streams) {
+        streamsWidget = new gui.widgets.carousel(_.map(streams, function(stream) {
+            return {
+                url: stream.channel.url,
+                imageUrl: stream.preview.medium,
+                title: stream.channel.display_name
+            };
+        }), function(err, stream) {
+            streamsWidget = null;
+            closeUri().then(function() {
+                openUri(stream.url);
+            });
+        }, function() {
+            popup.destroy();
+        });
+    }).catch(function(err) {
+        new gui.widgets.popup(err.toString(), 4);
+        console.error(err);
+        streamsWidget = null;
+    });
+};
 
 remote.onButtonPressed('KEY_F1', function() {
     if(streamsWidget) {
@@ -241,14 +276,25 @@ remote.onButtonPressed('KEY_F1', function() {
     }
 
     var popup = new gui.widgets.popup('Loading info..');
-    twitchAPI.getGames().then(function(games) {
+    twitchAPI.getGames(20, 0).then(function(games) {
         streamsWidget = new gui.widgets.carousel(_.map(games.top, function(info) {
             return {
                 imageUrl: info.game.box.large,
                 title: info.game.name
             };
-        }), function(err, selected) {
+        }), function(err, game) {
+            if(err) {
+                console.error(err);
+                new gui.widgets.popup(err.toString(), 4);
+                return;
+            }
 
+            if(!game) {
+                streamsWidget = null;
+                return;
+            }
+
+            showStreamsCarousel(game.title);
         }, function() {
             popup.destroy();
         });

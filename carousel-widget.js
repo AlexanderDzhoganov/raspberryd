@@ -7,16 +7,17 @@ module.exports = function(items, cb, loadedCb) {
     this.wnd = gui.createWindow(0, 0, gui.screenSize.x, gui.screenSize.y, 60);
     this.items = items;
 
-    var imgWidth = 272;
-    var imgHeight = 380;
-
     var selectedIndex = 0;
 
     remote.onAnyButtonPressed(function(btn) {
+        if(!this.wnd) {
+            return;
+        }
+
         if(btn === 'KEY_LEFT' && selectedIndex > 0) {
             selectedIndex--;
             this.drawWindow();
-        } else if(btn === 'KEY_RIGHT' && selectedIndex < this.items.length) {
+        } else if(btn === 'KEY_RIGHT' && selectedIndex < this.items.length - 1) {
             selectedIndex++;
             this.drawWindow();
         } else if(btn === 'KEY_ENTER') {
@@ -42,6 +43,8 @@ module.exports = function(items, cb, loadedCb) {
         }));
     };
 
+    var imgWidth = 272;
+
     this.interval = null;
     this.loadResources().then(function() {
         console.log('resources loaded');
@@ -49,48 +52,87 @@ module.exports = function(items, cb, loadedCb) {
         this.drawWindow();
     }.bind(this));
 
-    function xPosFromIndex(index) {
-        if(index === selectedIndex) {
-            return (gui.screenSize.x - imgWidth * 1.33) / 2;
-        } else if(selectedIndex < index) {
-            return (gui.screenSize.x - imgWidth) / 2 - 256 - ((imgWidth + 16) * (selectedIndex - index));
-        } else {
-            return (gui.screenSize.x - imgWidth) / 2 + 256 + ((imgWidth + 16) * (index - selectedIndex));
-        }
-    }
-
     function scaleFromIndex(index) {
         if(index === selectedIndex) {
             return 1.33;
+        } else if(index === selectedIndex - 1 || index == selectedIndex + 1) {
+            return 0.85;
+        } else if(index === selectedIndex - 2 || index === selectedIndex + 2) {
+            return 0.6;
         } else {
-            return 1.0;
+            return 0.25;
         }
     }
 
-    this.drawWindow = function() {
-        this.wnd.fill(0, 0, gui.screenSize.x, gui.screenSize.y, gui.colors.transparent);
+    function xPosFromIndex(index) {
+        var center = gui.screenSize.x / 2;
 
-        var i = 0;
-        _.each(this.items, function(item) {
-            var x = xPosFromIndex(i);
-            var scale = scaleFromIndex(i);
+        if(index === selectedIndex) {
+            return center - scaleFromIndex(index) * imgWidth * 0.5;
+        } else if(selectedIndex < index) {
+            return xPosFromIndex(index - 1) + scaleFromIndex(index - 1) * imgWidth * 0.75 + 16;
+        } else {
+            return xPosFromIndex(index + 1) - scaleFromIndex(index - 1) * imgWidth * 0.75 - 16;
+        }
+    }
 
-            var width = imgWidth * scale;
-            var height = imgHeight * scale;
+    function fontSizeFromIndex(index) {
+        if(index === selectedIndex) {
+            return 38;
+        } else if(index === selectedIndex - 1 || index === selectedIndex + 1) {
+            return 22;
+        } else {
+            return 12;
+        }
+    }
 
+    var imgHeight = 380;
+
+    this.renderItem = function(i) {
+        var item = this.items[i];
+        var x = xPosFromIndex(i);
+        var scale = scaleFromIndex(i);
+        var width = imgWidth * scale;
+        var height = imgHeight * scale; 
+        
+        if(x > -width && x < gui.screenSize.x + width) {
             if(item.imageHandle) {
+                var imageSize = item.imageHandle.getSize();
+                var aspect = imageSize.x / imageSize.y;
+                height = width / aspect;
+
                 this.wnd.drawImage(item.imageHandle, x, (gui.screenSize.y - height) / 2, width, height);
             } else {
                 this.wnd.fill(x, (gui.screenSize.y - height) / 2, width, height, gui.colors.magenta);
             }
 
-            i++;
-        }.bind(this));
+            var fontSize = fontSizeFromIndex(i);
+            var textSize = this.wnd.measureText(item.title, fontSize);
+            this.wnd.drawText(x + width * 0.5 - textSize.x * 0.5, (gui.screenSize.y - height) / 2 - textSize.y - 4, 
+                item.title, fontSize, gui.colors.white, gui.colors.transparent);
+        }
+    };
 
+    this.drawWindow = function() {
+        if(!this.wnd) {
+            return;
+        }
+
+        this.wnd.fill(0, 0, gui.screenSize.x, gui.screenSize.y, gui.colors.white.set('a', 0.25));
+
+        for(var i = Math.max(0, selectedIndex - 3); i < selectedIndex; i++) {
+            this.renderItem(i);
+        }
+
+        for(var i = Math.min(this.items.length - 1, selectedIndex + 3); i > selectedIndex; i--) {
+            this.renderItem(i);
+        }
+
+        this.renderItem(selectedIndex);
         this.wnd.update();
     };
 
-    this.destroy = function() {
+    this.destroy = function() { 
         if(this.wnd) {
             this.wnd.destroy();
             this.wnd = null;

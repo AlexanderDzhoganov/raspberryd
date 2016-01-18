@@ -613,6 +613,8 @@ namespace OpenVG
         uint32_t dstY = args[2]->IsUndefined() ? 0 : args[2]->NumberValue();
         uint32_t dstWidth = args[3]->IsUndefined() ? self->m_Size.x : args[3]->NumberValue();
         uint32_t dstHeight = args[4]->IsUndefined() ? self->m_Size.y : args[4]->NumberValue();
+        uint32_t shearX = args[5]->IsUndefined() ? 0 : args[5]->NumberValue();
+        uint32_t shearY = args[6]->IsUndefined() ? 0 : args[6]->NumberValue();
 
         GX_CLIENT_STATE_T save;
         gx_priv_save(&save, self->m_Handle);

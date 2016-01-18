@@ -104,7 +104,7 @@ module.exports = function(title, options, selected, cb) {
 
             this.drawWindow();
         } else if(btn == 'KEY_ENTER') {
-            cb(null, options[selectedIndex]);
+            cb(null, options[selectedIndex], selectedIndex);
             this.destroy();
         }
     };

@@ -79,6 +79,8 @@ function openUri(uri, quality) {
             currentQuality = quality;
         }
 
+        brain.remember('lastUrl', currentUri);
+
         if(!currentQuality) {
             currentQuality = 'high';
         }
@@ -309,6 +311,46 @@ remote.onButtonPressed('KEY_F1', function() {
     }).catch(function(err) {
         popup.destroy();
         new gui.widgets.popup(err.toString(), 4);
+        console.error(err);
+    });
+}, 500);
+
+remote.onButtonPressed('KEY_F2', function() {
+    if(favoritesWidget) {
+        favoritesWidget.destroy();
+        favoritesWidget = null;
+        return;
+    }
+
+    if(qualityWidget) {
+        qualityWidget.destroy();
+        qualityWidget = null;
+    }
+
+    var popup = new gui.widgets.popup('Loading favorites..');
+    brain.recall('favorites').then(function(favorites) {
+        popup.destroy();
+
+        favorites = JSON.parse(favorites);
+        favoritesWidget = new gui.widgets.select('Favorites:', _.map(favorites, function(str) {
+            if(!str || str == '') {
+                return 'Empty';
+            }
+
+            return str;
+        }), null, function(err, uri, index) {
+            if(err) {
+                console.error(err);
+                return;
+            }
+
+            favorites[index] = currentUri;
+            brain.remember('favorites', JSON.stringify(favorites));
+            new gui.widgets.popup('Saved to favorites!', 2);
+        });
+    }).catch(function(err) {
+        popup.destroy();
+        new gui.widgets.popup(err, 4);
         console.error(err);
     });
 }, 500);

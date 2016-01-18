@@ -14,14 +14,10 @@ module.exports = function(items, cb, loadedCb) {
     this.doAnim = function() {
         this.drawWindow();
 
-        setTimeout(function() {
-            animDelta += 0.15;
-            if(animDelta < 1.0) {
-                this.doAnim();
-            } else {
-                animDelta = 1.0;
-            }
-        }.bind(this), 16);
+        while(animDelta < 1.0) {
+            animDelta += 0.14;
+            this.drawWindow();
+        }
     }
 
     remote.onAnyButtonPressed(function(btn) {
@@ -61,7 +57,7 @@ module.exports = function(items, cb, loadedCb) {
         }));
     };
 
-    var imgWidth = 364;
+    var imgWidth = 354;
 
     this.interval = null;
     this.loadResources().then(function() {
@@ -82,11 +78,6 @@ module.exports = function(items, cb, loadedCb) {
         }
     }
 
-    function scaleFromIndexAnim(index) {
-        var diff = selectedIndex - prevIndex;
-        return scaleFromIndex(index + diff) * (1.0 - animDelta) + scaleFromIndex(index) * animDelta;
-    }
-
     function xPosFromIndex(index) {
         var center = gui.screenSize.x / 2;
 
@@ -99,11 +90,6 @@ module.exports = function(items, cb, loadedCb) {
         }
     }
 
-    function xPosFromIndexAnim(index) {
-        var diff = selectedIndex - prevIndex;
-        return xPosFromIndex(index + diff) * (1.0 - animDelta) + xPosFromIndex(index) * animDelta;
-    }
-
     function fontSizeFromIndex(index) {
         if(index === selectedIndex) {
             return 38;
@@ -114,17 +100,17 @@ module.exports = function(items, cb, loadedCb) {
         }
     }
 
-    function fontSizeFromIndexAnim(index) {
+    function animFn(fn, index) {
         var diff = selectedIndex - prevIndex;
-        return fontSizeFromIndex(index + diff) * (1.0 - animDelta) + fontSizeFromIndex(index) * animDelta;
+        return fn(index + diff) * (1.0 - animDelta) + fn(index) * animDelta;
     }
 
     var imgHeight = 380;
 
     this.renderItem = function(i) {
         var item = this.items[i];
-        var x = xPosFromIndexAnim(i);
-        var scale = scaleFromIndexAnim(i);
+        var x = animFn(xPosFromIndex, i);
+        var scale = animFn(scaleFromIndex, i);
         var width = imgWidth * scale;
         var height = imgHeight * scale; 
         
@@ -153,7 +139,7 @@ module.exports = function(items, cb, loadedCb) {
                 this.wnd.fill(x, (gui.screenSize.y - height) / 2, width, height, gui.colors.magenta);
             }
 
-            var fontSize = fontSizeFromIndex(i);
+            var fontSize = animFn(fontSizeFromIndex, i);
             var textSize = this.wnd.measureText(item.title, fontSize);
             this.wnd.drawText(x + width * 0.5 - textSize.x * 0.5, (gui.screenSize.y - height) / 2 - textSize.y - 4, 
                 item.title, fontSize, gui.colors.white, gui.colors.gray.set('a', 0.5));

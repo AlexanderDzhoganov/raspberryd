@@ -150,15 +150,20 @@ function closeUri() {
 };
 
 remote.onButtonPressed('KEY_INFO', function() {
+    global.clock.show();
+
     if(currentUri) {
         var str = currentUri + ' [' + currentQuality + ']' +
             '\n' + channelInfo.status;
         new gui.widgets.popup(str, 2, {
             onDraw: function(wnd) {
                 if(channelLogo) {
-                    var size = { x: 300, y: 300 };
-                    wnd.drawImage(channelLogo, (gui.screenSize.x - size.x) / 2, gui.screenSize.y - size.y - 16, size.x, size.y);
+                    var size = { x: 256, y: 256 };
+                    wnd.drawImage(channelLogo, (gui.screenSize.x - size.x) / 2, 56, size.x, size.y);
                 }
+            },
+            onHide: function(wnd) {
+                global.clock.hide();
             }
         });
     }

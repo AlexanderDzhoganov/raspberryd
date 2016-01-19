@@ -71,6 +71,10 @@ module.exports = function(text, timeout, opts) {
 
     if(timeout) {
         setTimeout(function() {
+            if(opts.onHide) {
+                opts.onHide(this.wnd);
+            }
+
             this.destroy();
         }.bind(this), timeout * 1000);
     }

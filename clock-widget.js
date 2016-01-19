@@ -1,6 +1,6 @@
 var gui = require('./gui');
 
-var wnd = gui.createWindow(gui.screenSize.x - 200, 4, 200, 32, 25);
+var wnd = gui.createWindow((gui.screenSize.x - 300) / 2, gui.screenSize.y - 128, 300, 64, 500);
 
 function draw() {
     var date = new Date();
@@ -32,9 +32,25 @@ function draw() {
         second = second.toString();
     }
 
-    wnd.drawText(0, 0, hour + ':' + minute + ':' + second + ' ' + ampm, 32, gui.colors.white, gui.colors.transparent);
+    wnd.drawText(0, 0, hour + ':' + minute + ':' + second + ' ' + ampm, 48, gui.colors.white, gui.colors.transparent);
     wnd.update();
 }
 
 draw();
-setInterval(draw, 1000);
+var interval = setInterval(draw, 1000);
+
+exports.show = function() {
+    wnd.show();
+    if(!interval) {
+        interval = setInterval(draw, 1000);
+    }
+};
+
+exports.hide = function() {
+    wnd.hide();
+
+    if(interval) {
+        clearInterval(interval);
+        interval = null;
+    }
+};

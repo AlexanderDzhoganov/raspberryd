@@ -10,6 +10,11 @@ var static = require('./static');
 var brain = require('./brain');
 var remote = require('./remote');
 var gui = require('./gui');
+var lcd = require('./lcd');
+
+remote.onButtonPressed('KEY_POWER', function() {
+    lcd.cyclePower();
+}, 1000);
 
 var bgWindow = gui.createWindow(0, 0, gui.screenSize.x, gui.screenSize.y, 1);
 
@@ -18,12 +23,16 @@ gui.createImageFromFile('raspberry.jpg').then(function(bgImage) {
     bgWindow.update();
 });
 
+global.clock = require('./clock-widget');
+
 global.showBackground = function() {
     bgWindow.show();
+    clock.show();
 };
 
 global.hideBackground = function() {
     bgWindow.hide();
+    clock.hide();
 };
 
 var urlHandler = require('./url-handler');
@@ -117,8 +126,6 @@ app.post('/save_favorites', function(req, res) {
 
 app.listen(3000, function () {
     console.log('Raspberryd listening on port 3000!');
-
-    var clock = require('./clock-widget');
 
     brain.recall('favorites').then(function(favorites) {
         if(!favorites) {
